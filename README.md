@@ -1,37 +1,63 @@
+# Sirene Area Companies (Open Source)
 
-# Sirene Area Companies
+This is a full-stack web app that allows users to draw a custom area on a map of France and get a list of all company headquarters located inside that area. This project is open source and we welcome contributions!
 
-This is a full-stack web app that allows users to draw a custom area on a map of France and get a list of all company headquarters located inside that area.
+## Contributing
 
-## Running the app locally
+We welcome contributions of all kinds! Please feel free to open an issue or submit a pull request.
 
-1. Install dependencies:
+## Getting Started (for Contributors)
 
-   ```bash
-   npm install
-   ```
+To get a local copy up and running, follow these simple steps.
 
-2. Run the development server:
+### Prerequisites
 
-   ```bash
-   npm run dev
-   ```
+You need to have Node.js and npm installed on your machine. You will also need a Firebase account.
 
-   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation & Setup
 
-## Connecting to Firebase
+1.  **Fork the repository** and clone it to your local machine.
+2.  **Install NPM packages:**
+    ```bash
+    npm install
+    ```
+3.  **Set up your own Firebase Project:**
+    1.  Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+    2.  Create a new Web App within your Firebase project.
+    3.  Copy the Firebase configuration object provided.
+    4.  Create a file named `firebase.ts` inside a `src/lib/` directory.
+    5.  Paste your copied Firebase config into `src/lib/firebase.ts`. It should look something like this:
+        ```typescript
+        import { initializeApp } from "firebase/app";
 
-1. Create a Firebase project at [https://console.firebase.google.com/](https://console.firebase.google.com/).
-2. In your Firebase project, create a new web app.
-3. Copy the Firebase configuration object and paste it into `src/lib/firebase.ts`.
-4. In your Firebase project, enable Firestore and Google Authentication.
+        const firebaseConfig = {
+          apiKey: "AIza....",
+          authDomain: "your-project-id.firebaseapp.com",
+          projectId: "your-project-id",
+          storageBucket: "your-project-id.appspot.com",
+          messagingSenderId: "...",
+          appId: "1:..."
+        };
 
-## Plugging in the real SIRENE/PostGIS data source
+        const app = initializeApp(firebaseConfig);
 
-1. In `src/app/api/search/route.ts`, replace the mock data with a call to your PostGIS database.
-2. You will need to use a library like `node-postgres` to connect to your database.
-3. The SQL query should look something like this:
+        export { app };
+        ```
+    6.  In the Firebase console, enable the **Firestore** database.
 
-   ```sql
-   SELECT * FROM companies WHERE ST_Contains(ST_GeomFromGeoJSON('YOUR_GEOJSON'), location);
-   ```
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+5.  Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Project Roadmap (TODO)
+
+Here are some areas where you can contribute:
+
+- [ ] Implement user authentication with Firebase.
+- [ ] Connect the front-end to the Firestore database.
+- [ ] Implement the search functionality to query the Firestore database.
+- [ ] Deploy the app to Firebase Hosting.
+- [ ] Plug in the real SIRENE/PostGIS data source for company data.
+

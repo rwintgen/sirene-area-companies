@@ -4,8 +4,34 @@ import { useState, useEffect, useMemo } from 'react'
 
 interface Filter {
   column: string
-  operator: 'contains' | 'equals' | 'not_empty'
+  operator: 'contains' | 'equals' | 'empty'
+  negate: boolean
   value: string
+}
+
+// Native select wrapped in a div that shows a truncated label overlay.
+// The select is transparent and covers the label, capturing all native events.
+function ColSelect({ value, onChange, columns, className }: {
+  value: string
+  onChange: (val: string) => void
+  columns: string[]
+  className?: string
+}) {
+  return (
+    <div className={`relative min-w-0 flex items-center ${className ?? ''}`}>
+      <span className="absolute inset-0 flex items-center px-1 text-xs truncate pointer-events-none select-none" aria-hidden>
+        {value}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="relative w-full h-full opacity-0 cursor-pointer text-xs"
+        style={{ minWidth: 0 }}
+      >
+        {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+    </div>
+  )
 }
 
 export default function CompanyList({
@@ -52,12 +78,14 @@ export default function CompanyList({
       if (!f.column) continue
       result = result.filter((c) => {
         const val = (c.fields?.[f.column] ?? '').toString().toLowerCase()
+        let match: boolean
         switch (f.operator) {
-          case 'contains': return val.includes(f.value.toLowerCase())
-          case 'equals': return val === f.value.toLowerCase()
-          case 'not_empty': return val.length > 0
-          default: return true
+          case 'contains': match = val.includes(f.value.toLowerCase()); break
+          case 'equals': match = val === f.value.toLowerCase(); break
+          case 'empty': match = val.length === 0; break
+          default: match = true
         }
+        return f.negate ? !match : match
       })
     }
 
@@ -91,7 +119,7 @@ export default function CompanyList({
   }
 
   const addFilter = () => {
-    onFiltersChange([...filters, { column: columns[0] || '', operator: 'contains', value: '' }])
+    onFiltersChange([...filters, { column: columns[0] || '', operator: 'contains', negate: false, value: '' }])
   }
   const removeFilter = (i: number) => {
     onFiltersChange(filters.filter((_, idx) => idx !== i))
@@ -156,7 +184,7 @@ export default function CompanyList({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0 overflow-x-hidden">
       {/* Header + toolbar */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -176,7 +204,7 @@ export default function CompanyList({
               }
             }}
             className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${sortBy ? t.toolbarActive : t.toolbarBtn}`}
-            title="Sort"
+            data-tooltip="Sort results" data-tooltip-pos="bottom"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4V4" />
@@ -186,7 +214,7 @@ export default function CompanyList({
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${filters.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
-            title="Filter"
+            data-tooltip="Filter results" data-tooltip-pos="bottom"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -197,19 +225,18 @@ export default function CompanyList({
 
       {/* Sort bar */}
       {sortBy !== null && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className={`text-[10px] uppercase tracking-widest font-semibold ${t.fieldLabel}`}>Sort</span>
-          <select
+        <div className="flex items-center gap-1.5 mb-2 min-w-0">
+          <span className={`flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold ${t.fieldLabel}`}>Sort</span>
+          <ColSelect
             value={sortBy}
-            onChange={(e) => onSortChange(e.target.value, sortDir)}
-            className={`flex-1 rounded-md border px-1.5 py-1 outline-none ${t.select}`}
-          >
-            {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+            onChange={(v) => onSortChange(v, sortDir)}
+            columns={columns}
+            className={`flex-1 min-w-0 rounded-md border h-[26px] ${t.select}`}
+          />
           <button
             onClick={() => onSortChange(sortBy, sortDir === 'asc' ? 'desc' : 'asc')}
             className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${t.activeSortIcon}`}
-            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+            data-tooltip={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
           >
             <svg className={`w-3.5 h-3.5 transition-transform ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -218,7 +245,7 @@ export default function CompanyList({
           <button
             onClick={() => onSortChange(null, 'asc')}
             className={`transition-colors ${t.filterRemove}`}
-            title="Clear sort"
+            data-tooltip="Clear sort"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -231,14 +258,24 @@ export default function CompanyList({
       {showFilters && (
         <div className={`rounded-lg border p-2 mb-2 space-y-1.5 ${t.filterBg}`}>
           {filters.map((f, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <select
+            <div key={i} className="flex items-center gap-1 min-w-0">
+              <ColSelect
                 value={f.column}
-                onChange={(e) => updateFilter(i, { column: e.target.value })}
-                className={`flex-1 min-w-0 rounded border px-1 py-1 outline-none ${t.select}`}
+                onChange={(v) => updateFilter(i, { column: v })}
+                columns={columns}
+                className={`flex-1 min-w-0 rounded border h-[26px] ${t.select}`}
+              />
+              <button
+                onClick={() => updateFilter(i, { negate: !f.negate })}
+                className={`flex-shrink-0 text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
+                  f.negate
+                    ? 'text-orange-400 border-orange-500/50 bg-orange-500/10'
+                    : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
+                }`}
+                data-tooltip="Negate this filter condition"
               >
-                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+                NOT
+              </button>
               <select
                 value={f.operator}
                 onChange={(e) => updateFilter(i, { operator: e.target.value as Filter['operator'] })}
@@ -246,9 +283,9 @@ export default function CompanyList({
               >
                 <option value="contains">contains</option>
                 <option value="equals">equals</option>
-                <option value="not_empty">not empty</option>
+                <option value="empty">empty</option>
               </select>
-              {f.operator !== 'not_empty' && (
+              {f.operator !== 'empty' && (
                 <input
                   type="text"
                   value={f.value}
@@ -257,7 +294,7 @@ export default function CompanyList({
                   className={`flex-1 min-w-0 rounded border px-1.5 py-1 outline-none ${t.input}`}
                 />
               )}
-              <button onClick={() => removeFilter(i)} className={`flex-shrink-0 ${t.filterRemove}`}>
+              <button onClick={() => removeFilter(i)} className={`flex-shrink-0 ${t.filterRemove}`} data-tooltip="Remove filter">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -312,7 +349,7 @@ export default function CompanyList({
                 <button
                   onClick={(e) => { e.stopPropagation(); onExpand(company) }}
                   className={`opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 w-6 h-6 rounded-md flex items-center justify-center ${t.toolbarBtn}`}
-                  title="View details"
+                  data-tooltip="View details" data-tooltip-pos="left"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -330,6 +367,7 @@ export default function CompanyList({
             onClick={() => handlePageChange(page - 1)}
             disabled={page === 1}
             className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
+            data-tooltip="Previous page"
           >
             ← Prev
           </button>
@@ -340,6 +378,7 @@ export default function CompanyList({
             onClick={() => handlePageChange(page + 1)}
             disabled={page === totalPages}
             className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
+            data-tooltip="Next page"
           >
             Next →
           </button>

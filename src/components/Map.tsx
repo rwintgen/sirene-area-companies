@@ -5,6 +5,9 @@ import { EditControl } from 'react-leaflet-draw'
 import { useRef, useEffect, useCallback } from 'react'
 
 import L from 'leaflet'
+
+const FRANCE_CENTER: [number, number] = [46.603354, 1.888334]
+const FRANCE_ZOOM = 6
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
 const defaultIcon = new L.Icon({
@@ -82,12 +85,18 @@ function LocationUpdater({ userLocation }: { userLocation: [number, number] | nu
   return null
 }
 
+function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
+  mapRef.current = useMap()
+  return null
+}
+
 export default function Map({
   companies,
   selectedCompany,
   onSearch,
   onCompanySelect,
   onExpand,
+  onLocate,
   isDark,
   mapStyle,
   userLocation,
@@ -98,12 +107,14 @@ export default function Map({
   onSearch: (geometry: any) => void
   onCompanySelect: (company: any) => void
   onExpand: (company: any) => void
+  onLocate: () => void
   isDark: boolean
-  mapStyle: 'themed' | 'default'
+  mapStyle: 'themed' | 'default' | 'satellite' | 'terrain' | 'watercolor'
   userLocation: [number, number] | null
   popupColumns: string[]
 }) {
   const featureGroupRef = useRef<L.FeatureGroup | null>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
 
   const clearPreviousLayers = useCallback(() => {
     if (featureGroupRef.current) {
@@ -140,22 +151,38 @@ export default function Map({
   }, [onSearch])
 
   return (
-    <MapContainer
-      center={[46.603354, 1.888334]}
-      zoom={6}
+    <div className="absolute inset-0">
+      <MapContainer
+        center={FRANCE_CENTER}
+        zoom={FRANCE_ZOOM}
       scrollWheelZoom={true}
       className="absolute inset-0 z-0"
     >
       <TileLayer
-        key={mapStyle === 'default' ? 'default' : isDark ? 'carto-dark' : 'carto-light'}
-        attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+        key={`${mapStyle}-${isDark}`}
+        attribution={
+          mapStyle === 'satellite'
+            ? '&copy; <a href="https://www.esri.com/">Esri</a>'
+            : mapStyle === 'watercolor'
+            ? '&copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            : mapStyle === 'terrain'
+            ? '&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            : '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+        }
         url={
           mapStyle === 'default'
             ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            : mapStyle === 'satellite'
+            ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+            : mapStyle === 'terrain'
+            ? 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png'
+            : mapStyle === 'watercolor'
+            ? 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg'
             : isDark
             ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
             : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
         }
+        maxZoom={mapStyle === 'watercolor' ? 16 : 19}
       />
       <FeatureGroup ref={featureGroupRef}>
         <EditControl
@@ -232,6 +259,31 @@ export default function Map({
       })}
       <SelectedMarkerPopup selectedCompany={selectedCompany} popupColumns={popupColumns} onExpand={onExpand} />
       <LocationUpdater userLocation={userLocation} />
+      <MapRefCapture mapRef={mapInstanceRef} />
     </MapContainer>
+
+    {/* Map control buttons — bottom left */}
+    <div className="absolute bottom-8 left-3 z-[1000] flex flex-col gap-2">
+      <button
+        onClick={onLocate}
+        className="bg-white hover:bg-gray-50 border border-gray-300 shadow-md rounded-lg w-8 h-8 flex items-center justify-center transition-colors"
+        data-tooltip="Go to my location" data-tooltip-pos="right"
+      >
+        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+      <button
+        onClick={() => mapInstanceRef.current?.flyTo(FRANCE_CENTER, FRANCE_ZOOM, { animate: true, duration: 1 })}
+        className="bg-white hover:bg-gray-50 border border-gray-300 shadow-md rounded-lg w-8 h-8 flex items-center justify-center transition-colors"
+        data-tooltip="Reset to France view" data-tooltip-pos="right"
+      >
+        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      </button>
+    </div>
+  </div>
   )
 }

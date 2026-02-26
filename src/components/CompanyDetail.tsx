@@ -64,6 +64,7 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
           <button
             onClick={onClose}
             className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${t.closeBtn}`}
+            data-tooltip="Close" data-tooltip-pos="left"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 
 interface Filter {
   column: string
-  operator: 'contains' | 'equals' | 'not_empty'
+  operator: 'contains' | 'equals' | 'empty'
+  negate: boolean
   value: string
 }
 
@@ -32,6 +33,12 @@ export default function SavedAreas({
   const [savedAreas, setSavedAreas] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const saveInputRef = useRef<HTMLInputElement>(null)
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const user = auth.currentUser
 
   useEffect(() => {
@@ -57,22 +64,34 @@ export default function SavedAreas({
   }
 
   const handleSave = async () => {
-    if (user && currentSearchArea) {
-      const searchName = prompt('Enter a name for this search:')
-      if (searchName) {
-        await addDoc(collection(db, 'savedAreas'), {
-          name: searchName,
-          userId: user.uid,
-          geometryJson: JSON.stringify(currentSearchArea),
-          filtersJson: JSON.stringify(currentFilters),
-          sortBy: currentSortBy ?? null,
-          sortDir: currentSortDir,
-          timestamp: new Date(),
-        })
-      }
-    } else if (!currentSearchArea) {
-      alert('Please draw an area on the map first.')
+    if (!currentSearchArea) return
+    if (!isSaving) {
+      setIsSaving(true)
+      setSaveName('')
+      setTimeout(() => saveInputRef.current?.focus(), 50)
+      return
     }
+    if (user && saveName.trim()) {
+      await addDoc(collection(db, 'savedAreas'), {
+        name: saveName.trim(),
+        userId: user.uid,
+        geometryJson: JSON.stringify(currentSearchArea),
+        filtersJson: JSON.stringify(currentFilters),
+        sortBy: currentSortBy ?? null,
+        sortDir: currentSortDir,
+        timestamp: new Date(),
+      })
+      setIsSaving(false)
+      setSaveName('')
+    }
+  }
+
+  const handleRename = async (areaId: string) => {
+    if (renameValue.trim()) {
+      await updateDoc(doc(db, 'savedAreas', areaId), { name: renameValue.trim() })
+    }
+    setRenamingId(null)
+    setRenameValue('')
   }
 
   const t = isDark
@@ -150,6 +169,29 @@ export default function SavedAreas({
                     Cancel
                   </button>
                 </div>
+              ) : renamingId === area.id ? (
+                <div className="flex-1 flex items-center gap-1 px-2 py-1">
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleRename(area.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue('') } }}
+                    className={`flex-1 min-w-0 text-sm rounded px-1.5 py-0.5 outline-none border ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleRename(area.id)}
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors px-1 py-0.5 rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setRenamingId(null); setRenameValue('') }}
+                    className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    Cancel
+                  </button>
+                </div>
               ) : (
                 <>
                   <button
@@ -165,9 +207,18 @@ export default function SavedAreas({
                     {area.name}
                   </button>
                   <button
+                    onClick={(e) => { e.stopPropagation(); setRenamingId(area.id); setRenameValue(area.name) ; setTimeout(() => renameInputRef.current?.focus(), 50) }}
+                    className={`flex-shrink-0 w-6 h-6 mr-0.5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all ${isDark ? 'text-gray-600 hover:text-blue-400' : 'text-gray-400 hover:text-blue-500'}`}
+                    data-tooltip="Rename search"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button
                     onClick={(e) => { e.stopPropagation(); setPendingDeleteId(area.id) }}
                     className={`flex-shrink-0 w-6 h-6 mr-1 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all ${t.deleteBtn}`}
-                    title="Delete area"
+                    data-tooltip="Delete search"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -177,12 +228,38 @@ export default function SavedAreas({
               )}
             </div>
           ))}
-          <button
-            onClick={handleSave}
-            className={`w-full mt-2 text-xs font-medium border rounded-lg px-3 py-2 transition-colors ${t.saveBtn}`}
-          >
-            + Save Current Search
-          </button>
+          {isSaving ? (
+            <div className={`mt-2 flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 ${isDark ? 'border-blue-500/30 bg-white/5' : 'border-blue-300 bg-gray-50'}`}>
+              <input
+                ref={saveInputRef}
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setIsSaving(false); setSaveName('') } }}
+                placeholder="Search name…"
+                className={`flex-1 min-w-0 text-xs bg-transparent outline-none ${isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
+              />
+              <button
+                onClick={handleSave}
+                disabled={!saveName.trim()}
+                className={`text-[11px] font-semibold transition-colors px-1.5 py-0.5 rounded ${saveName.trim() ? 'text-blue-400 hover:text-blue-300' : isDark ? 'text-gray-600' : 'text-gray-400'}`}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setIsSaving(false); setSaveName('') }}
+                className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              className={`w-full mt-2 text-xs font-medium border rounded-lg px-3 py-2 transition-colors ${t.saveBtn} ${!currentSearchArea ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              + Save Current Search
+            </button>
+          )}
         </div>
       )}
     </div>

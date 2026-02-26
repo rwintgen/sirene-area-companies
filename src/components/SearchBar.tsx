@@ -145,7 +145,7 @@ export default function SearchBar({ onSelect, isDark }: Props) {
           className={`flex-1 text-sm outline-none min-w-0 ${t.input}`}
         />
         {query && (
-          <button onClick={handleClear} className={`flex-shrink-0 transition-colors ${t.clearBtn}`}>
+          <button onClick={handleClear} className={`flex-shrink-0 transition-colors ${t.clearBtn}`} data-tooltip="Clear search">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>

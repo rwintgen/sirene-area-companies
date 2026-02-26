@@ -7,6 +7,7 @@ import SavedAreas from '@/components/SavedAreas'
 import SearchBar from '@/components/SearchBar'
 import AuthModal from '@/components/AuthModal'
 import CompanyDetail from '@/components/CompanyDetail'
+import ExportModal from '@/components/ExportModal'
 import { auth, db } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut } from 'firebase/auth'
@@ -24,12 +25,13 @@ export default function Home() {
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDark, setIsDark] = useState(true)
-  const [mapStyle, setMapStyle] = useState<'themed' | 'default'>('themed')
+  const [mapStyle, setMapStyle] = useState<'themed' | 'default' | 'satellite' | 'terrain' | 'watercolor'>('themed')
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [user] = useAuthState(auth)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [expandedCompany, setExpandedCompany] = useState<any>(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const isSigningIn = useRef(false)
   const profileLoaded = useRef(false)
@@ -49,7 +51,7 @@ export default function Home() {
   // Sort & filter
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-  const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'not_empty'; value: string }[]>([])
+  const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]>([])
 
   // Load preferences: Firestore first (source of truth), localStorage as fallback/cache
   useEffect(() => {
@@ -193,12 +195,14 @@ export default function Home() {
       if (!f.column) continue
       result = result.filter((c: any) => {
         const val = (c.fields?.[f.column] ?? '').toString().toLowerCase()
+        let match: boolean
         switch (f.operator) {
-          case 'contains': return val.includes(f.value.toLowerCase())
-          case 'equals': return val === f.value.toLowerCase()
-          case 'not_empty': return val.length > 0
-          default: return true
+          case 'contains': match = val.includes(f.value.toLowerCase()); break
+          case 'equals': match = val === f.value.toLowerCase(); break
+          case 'empty': match = val.length === 0; break
+          default: match = true
         }
+        return f.negate ? !match : match
       })
     }
     return result
@@ -298,8 +302,9 @@ export default function Home() {
           onSearch={handleSearch}
           onCompanySelect={setSelectedCompany}
           onExpand={handleExpand}
+          onLocate={handleLocate}
           isDark={isDark}
-          mapStyle={mapStyle}
+          mapStyle={mapStyle as any}
           userLocation={userLocation}
           popupColumns={popupColumns}
         />
@@ -315,29 +320,15 @@ export default function Home() {
         {/* Header */}
         <div className={`px-5 pt-5 pb-4 border-b ${d.headerBorder}`}>
           <div className="flex items-center justify-between mb-4">
-            <h1 className={`text-lg font-semibold tracking-tight ${d.title}`}>
-              Public Data Maps
-            </h1>
+            <img src="/logo-full.png" alt="Public Data Maps" className={`h-12 w-auto ${isDark ? 'invert' : ''}`} />
 
             <div className="flex items-center gap-1.5">
-              {/* Location */}
-              <button
-                onClick={handleLocate}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.iconBtn}`}
-                title="Go to my location"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-
               {/* Settings */}
               <div className="relative" ref={settingsRef}>
                 <button
                   onClick={() => { setSettingsOpen(!settingsOpen); setSettingsTab('general') }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.iconBtn}`}
-                  title="Settings"
+                  data-tooltip="Settings" data-tooltip-pos="bottom"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -365,28 +356,29 @@ export default function Home() {
                     {settingsTab === 'general' && (
                       <div className="py-1">
                         <div className={`px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest ${d.dropdownLabel}`}>Map Style</div>
-                        {(['themed', 'default'] as const).map((style) => (
-                          <button
-                            key={style}
-                            onClick={() => setMapStyle(style)}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${mapStyle === style ? d.dropdownActive : d.dropdownItem}`}
-                          >
-                            <span className="capitalize">{style}</span>
-                            {mapStyle === style && (
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </button>
-                        ))}
+                        {(['themed', 'default', 'satellite', 'terrain', 'watercolor'] as const).map((style) => {
+                          const labels: Record<string, string> = { themed: 'Themed', default: 'Default', satellite: 'Satellite', terrain: 'Terrain', watercolor: 'Watercolor' }
+                          return (
+                            <button
+                              key={style}
+                              onClick={() => setMapStyle(style)}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${mapStyle === style ? d.dropdownActive : d.dropdownItem}`}
+                            >
+                              <span>{labels[style]}</span>
+                              {mapStyle === style && (
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                          )
+                        })}
                         {user && (
-                          <div className={`mx-3 mt-2 mb-1 flex items-center justify-end h-5`}>
-                            {prefsSaved && (
-                              <span className={`text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                Preferences saved
-                              </span>
-                            )}
+                          <div className="mx-3 mt-2 mb-1 flex items-center justify-end h-5">
+                            <span className={`text-[10px] flex items-center gap-1 transition-opacity ${isDark ? 'text-green-400' : 'text-green-600'} ${prefsSaved ? 'animate-prefs-saved' : 'opacity-0'}`}>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                              Preferences saved
+                            </span>
                           </div>
                         )}
                       </div>
@@ -436,7 +428,7 @@ export default function Home() {
               <button
                 onClick={() => setIsDark(!isDark)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.themeBtnBg}`}
-                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                data-tooltip={isDark ? 'Switch to light mode' : 'Switch to dark mode'} data-tooltip-pos="bottom"
               >
                 {isDark ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -468,7 +460,7 @@ export default function Home() {
                 )}
                 <span className={`text-xs ${d.userName}`}>{user.displayName ?? user.email}</span>
               </div>
-              <button onClick={handleSignOut} className={`text-xs transition-colors ${d.signOutBtn}`}>
+              <button onClick={handleSignOut} className={`text-xs transition-colors ${d.signOutBtn}`} data-tooltip="Sign out of your account" data-tooltip-pos="bottom">
                 Sign Out
               </button>
             </div>
@@ -505,7 +497,7 @@ export default function Home() {
         )}
 
         {/* Company List */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
           <CompanyList
             companies={companies}
             selectedCompany={selectedCompany}
@@ -523,10 +515,25 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <div className={`px-5 py-3 border-t ${d.footer}`}>
-          <p className={`text-[10px] text-center ${d.footerText}`}>
+        <div className={`flex-shrink-0 px-5 py-3 border-t flex items-center ${d.footer}`}>
+          <p className={`text-[10px] flex-1 ${d.footerText}`}>
             Data source: SIRENE (INSEE) &middot; Open Data
           </p>
+          <button
+            onClick={() => setExportOpen(true)}
+            disabled={companies.length === 0}
+            className={`text-[10px] font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
+              companies.length > 0
+                ? isDark ? 'text-blue-400 border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/10' : 'text-blue-600 border-blue-300 hover:border-blue-400 hover:bg-blue-50'
+                : isDark ? 'text-gray-700 border-white/5 cursor-not-allowed' : 'text-gray-400 border-gray-200 cursor-not-allowed'
+            }`}
+            data-tooltip="Export search results" data-tooltip-pos="left"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </button>
         </div>
       </div>
     </main>
@@ -546,6 +553,15 @@ export default function Home() {
         isDark={isDark}
         onClose={() => setExpandedCompany(null)}
         onAskAI={handleAskAI}
+      />
+    )}
+
+    {exportOpen && (
+      <ExportModal
+        companies={mapCompanies}
+        displayColumns={displayColumns}
+        isDark={isDark}
+        onClose={() => setExportOpen(false)}
       />
     )}
     </>

@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
 /* === Leaflet popup: dark theme (default) === */
 [data-theme=dark] .leaflet-popup-content-wrapper,
 :not([data-theme]) .leaflet-popup-content-wrapper {
@@ -54,9 +59,94 @@
   background: rgba(255,255,255,0.1);
   border-radius: 9999px;
 }
-[data-theme=dark] ::-webkit-scrollbar-thumb:hover,
-:not([data-theme]) ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.2);
+[data-theme=light] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.18);
+}
+
+/* === Preferences saved fade in/out === */
+@keyframes prefs-saved {
+  0%   { opacity: 0; transform: translateY(3px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-3px); }
+}
+.animate-prefs-saved {
+  animation: prefs-saved 2s ease-in-out forwards;
+}
+
+/* === Leaflet controls: match reset-position button style === */
+
+/* Remove outer container border & shadow so buttons appear separate */
+.leaflet-bar {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* Zoom control: stack buttons with spacing */
+.leaflet-control-zoom {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+/* Draw toolbar: space each tool button */
+.leaflet-draw-toolbar li {
+  margin-bottom: 6px;
+}
+.leaflet-draw-toolbar li:last-child {
+  margin-bottom: 0;
+}
+
+/* Rounded corners + no inner divider on all control buttons */
+.leaflet-bar a,
+.leaflet-bar a:first-child,
+.leaflet-bar a:last-child,
+.leaflet-draw-toolbar a,
+.leaflet-draw-toolbar a:first-child,
+.leaflet-draw-toolbar a:last-child,
+.leaflet-touch .leaflet-bar a,
+.leaflet-touch .leaflet-bar a:first-child,
+.leaflet-touch .leaflet-bar a:last-child,
+.leaflet-touch .leaflet-draw-toolbar a,
+.leaflet-touch .leaflet-draw-toolbar a:first-child,
+.leaflet-touch .leaflet-draw-toolbar a:last-child {
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+  background-color: #ffffff !important;
+  color: #4b5563 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.leaflet-bar a:hover,
+.leaflet-bar a:first-child:hover,
+.leaflet-bar a:last-child:hover,
+.leaflet-draw-toolbar a:hover,
+.leaflet-touch .leaflet-bar a:hover,
+.leaflet-touch .leaflet-draw-toolbar a:hover {
+  background-color: #f9fafb !important;
+  color: #4b5563 !important;
+}
+
+/* Ensure zoom +/- text is centered */
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  text-indent: 0 !important;
+  text-align: center !important;
+}
+
+/* Draw toolbar icons stay dark */
+.leaflet-draw-toolbar a {
+  background-size: 300px 30px !important;
 }
 [data-theme=light] ::-webkit-scrollbar-thumb {
   background: rgba(0,0,0,0.12);
@@ -64,4 +154,67 @@
 }
 [data-theme=light] ::-webkit-scrollbar-thumb:hover {
   background: rgba(0,0,0,0.2);
+}
+
+/* === Tooltip system: data-tooltip attribute === */
+[data-tooltip] {
+  position: relative;
+}
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  background: #1f2937;
+  color: #f3f4f6;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 10000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 1s;
+}
+/* Right-aligned variant */
+[data-tooltip-pos=right]::after {
+  bottom: auto;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-2px);
+}
+[data-tooltip-pos=right]:hover::after {
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 1s;
+}
+/* Left-aligned variant */
+[data-tooltip-pos=left]::after {
+  bottom: auto;
+  left: auto;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%) translateX(2px);
+}
+[data-tooltip-pos=left]:hover::after {
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 1s;
+}
+/* Bottom variant */
+[data-tooltip-pos=bottom]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-2px);
+}
+[data-tooltip-pos=bottom]:hover::after {
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 1s;
 }

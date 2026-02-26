@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Public Data Maps - France',
   description: 'Draw an area on the map and discover every registered company inside it',
+  icons: {
+    icon: '/favicon.png',
+  },
 }
 
 export default function RootLayout({

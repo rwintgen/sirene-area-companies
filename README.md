@@ -41,8 +41,7 @@ You need to have Node.js and npm installed on your machine. You will also need a
 4.  **Set up the data file:**
     A sample dataset (`data/sample.csv`) is included in the repository so you can run the app immediately. Note that the **sample data has empty company names**, so you'll see SIRET numbers instead. If you want to see actual company names, download the **entire SIRENE dataset (9.72 GB)** from Zenodo:
 
-    > **Dataset:** [https://zenodo.org/records/18776020](https://zenodo.org/records/18776020)
-    > **DOI:** [https://doi.org/10.5281/zenodo.18776020](https://doi.org/10.5281/zenodo.18776020)
+    > **Dataset:** [https://public.opendatasoft.com/explore/assets/economicref-france-sirene-v3/](https://public.opendatasoft.com/explore/assets/economicref-france-sirene-v3/)
 
     Once downloaded, replace `data/sample.csv` with the full file. The app will automatically load it on the first request (note: initial load time will be longer with the full dataset).
 

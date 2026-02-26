@@ -39,7 +39,7 @@ You need to have Node.js and npm installed on your machine. You will also need a
     7.  In the Firebase console, go to the **Firestore Database** section and create a database. Start in **test mode** for now, which allows open access for development.
 
 4.  **Set up the data file:**
-    A sample dataset (`data/sample.csv`) is included in the repository so you can run the app immediately. If you want to try the program with the **entire SIRENE dataset (9.72 GB)**, you can download it from Zenodo:
+    A sample dataset (`data/sample.csv`) is included in the repository so you can run the app immediately. Note that the **sample data has empty company names**, so you'll see SIRET numbers instead. If you want to see actual company names, download the **entire SIRENE dataset (9.72 GB)** from Zenodo:
 
     > **Dataset:** [https://zenodo.org/records/18776020](https://zenodo.org/records/18776020)
     > **DOI:** [https://doi.org/10.5281/zenodo.18776020](https://doi.org/10.5281/zenodo.18776020)
@@ -61,7 +61,7 @@ Here are some areas where you can contribute:
 - [ ] Migrate to a PostGIS database for better performance with the full dataset.
 - [ ] Implement the search functionality to query the company database.
 - [ ] Add filters
-- [ ] Fix area saving when loged in
-- [ ] Improve UI/UX
+- [ ] Fix area saving when logged in
+- [x] Improve UI/UX
 - [ ] Add other data types (currently only companies)
 - [ ] Deploy the app to a hosting service like Vercel or Firebase Hosting.

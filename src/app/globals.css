@@ -1,3 +1,67 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* === Leaflet popup: dark theme (default) === */
+[data-theme=dark] .leaflet-popup-content-wrapper,
+:not([data-theme]) .leaflet-popup-content-wrapper {
+  background: #111827;
+  color: #f3f4f6;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+[data-theme=dark] .leaflet-popup-tip,
+:not([data-theme]) .leaflet-popup-tip {
+  background: #111827;
+}
+[data-theme=dark] .leaflet-popup-close-button,
+:not([data-theme]) .leaflet-popup-close-button {
+  color: #6b7280 !important;
+}
+[data-theme=dark] .leaflet-popup-close-button:hover,
+:not([data-theme]) .leaflet-popup-close-button:hover {
+  color: #fff !important;
+}
+
+/* === Leaflet popup: light theme === */
+[data-theme=light] .leaflet-popup-content-wrapper {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+[data-theme=light] .leaflet-popup-tip {
+  background: #ffffff;
+}
+[data-theme=light] .leaflet-popup-close-button {
+  color: #9ca3af !important;
+}
+[data-theme=light] .leaflet-popup-close-button:hover {
+  color: #111827 !important;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-theme=dark] ::-webkit-scrollbar-thumb,
+:not([data-theme]) ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 9999px;
+}
+[data-theme=dark] ::-webkit-scrollbar-thumb:hover,
+:not([data-theme]) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
+[data-theme=light] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 9999px;
+}
+[data-theme=light] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}

@@ -45,6 +45,12 @@ function loadCompanies(): Company[] {
     .map((r) => {
       const x = parseFloat(r.coordonneeLambertAbscisseEtablissement);
       const y = parseFloat(r.coordonneeLambertOrdonneeEtablissement);
+      
+      // Skip invalid coordinates
+      if (!isFinite(x) || !isFinite(y)) {
+        return null;
+      }
+      
       const [lon, lat] = proj4('EPSG:2154', 'WGS84', [x, y]);
       return {
         siret: r.siret,
@@ -58,26 +64,43 @@ function loadCompanies(): Company[] {
         isHeadOffice: r.etablissementSiege === 'True',
         isActive: r.etatAdministratifEtablissement === 'A',
       };
-    });
+    })
+    .filter(Boolean) as Company[];
 
   console.log(`Loaded ${companiesCache.length} companies from CSV.`);
   return companiesCache;
 }
 
 export async function POST(req: NextRequest) {
-  const { geometry } = await req.json();
+  try {
+    const { geometry } = await req.json();
 
-  if (!geometry) {
-    return NextResponse.json({ companies: [] });
+    if (!geometry) {
+      return NextResponse.json({ companies: [] });
+    }
+
+    // Validate geometry
+    if (!geometry.coordinates || !Array.isArray(geometry.coordinates)) {
+      return NextResponse.json(
+        { error: 'Invalid geometry: missing or invalid coordinates' },
+        { status: 400 }
+      );
+    }
+
+    const allCompanies = loadCompanies();
+
+    const companies = allCompanies.filter((company) => {
+      const pt = point([company.lon, company.lat]);
+      return booleanPointInPolygon(pt, geometry);
+    });
+
+    console.log(`Found ${companies.length} companies in the drawn area.`);
+    return NextResponse.json({ companies });
+  } catch (error) {
+    console.error('Search API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to search companies', details: String(error) },
+      { status: 500 }
+    );
   }
-
-  const allCompanies = loadCompanies();
-
-  const companies = allCompanies.filter((company) => {
-    const pt = point([company.lon, company.lat]);
-    return booleanPointInPolygon(pt, geometry);
-  });
-
-  console.log(`Found ${companies.length} companies in the drawn area.`);
-  return NextResponse.json({ companies });
 }

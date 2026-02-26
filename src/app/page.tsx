@@ -53,7 +53,7 @@ export default function Home() {
         />
       </div>
       <div className="w-1/3 overflow-y-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Sirene Area Companies</h1>
+        <h1 className="text-2xl font-bold mb-4">French Companies by Area</h1>
 
         {user ? (
           <div>

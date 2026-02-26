@@ -38,18 +38,27 @@ You need to have Node.js and npm installed on your machine. You will also need a
     6.  In the Firebase console, go to the **Authentication** section and enable the **Google** sign-in provider.
     7.  In the Firebase console, go to the **Firestore Database** section and create a database. Start in **test mode** for now, which allows open access for development.
 
-4.  **Run the development server:**
+4.  **Set up the data file:**
+    A sample dataset (`data/sample.csv`) is included in the repository so you can run the app immediately. If you want to try the program with the **entire SIRENE dataset (9.72 GB)**, you can download it from Zenodo:
+
+    > **Dataset:** [https://zenodo.org/records/18776020](https://zenodo.org/records/18776020)
+    > **DOI:** [https://doi.org/10.5281/zenodo.18776020](https://doi.org/10.5281/zenodo.18776020)
+
+    Once downloaded, replace `data/sample.csv` with the full file. The app will automatically load it on the first request (note: initial load time will be longer with the full dataset).
+
+5.  **Run the development server:**
     ```bash
     npm run dev
     ```
 
-5.  Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. You should be able to log in with your Google account and save areas on the map.
+6.  Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. You should be able to log in with your Google account and save areas on the map.
 
 ## Project Roadmap
 
 Here are some areas where you can contribute:
 
-- [ ] Plug in the real SIRENE/PostGIS data source for company data.
+- [x] Plug in the real SIRENE data source for company data (CSV-based, see dataset section above).
+- [ ] Migrate to a PostGIS database for better performance with the full dataset.
 - [ ] Implement the search functionality to query the company database.
 - [ ] Add filters
 - [ ] Fix area saving when loged in

@@ -210,6 +210,8 @@ This app requires server-side rendering (Next.js API routes handle the search). 
 - [x] PostGIS backend for full-dataset performance
 - [x] Deploy via Firebase App Hosting
 - [ ] Import full SIRENE dataset into Cloud SQL
+- [ ] Increase result cap beyond 5 000 (pagination or streaming)
+- [ ] Cluster map pins for performance with large result sets
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout
 - [ ] Add AI overview

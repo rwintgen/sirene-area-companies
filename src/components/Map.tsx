@@ -101,6 +101,7 @@ export default function Map({
   mapStyle,
   userLocation,
   popupColumns,
+  restoreGeometry,
 }: {
   companies: any[]
   selectedCompany: any
@@ -112,9 +113,25 @@ export default function Map({
   mapStyle: 'default' | 'themed' | 'satellite'
   userLocation: [number, number] | null
   popupColumns: string[]
+  restoreGeometry: { geometry: any; ts: number } | null
 }) {
   const featureGroupRef = useRef<L.FeatureGroup | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
+
+  // Restore a saved area geometry onto the FeatureGroup
+  useEffect(() => {
+    if (!restoreGeometry || !featureGroupRef.current || !mapInstanceRef.current) return
+    featureGroupRef.current.clearLayers()
+    const feature = { type: 'Feature', geometry: restoreGeometry.geometry, properties: {} }
+    const geoLayer = L.geoJSON(feature as any, {
+      style: { color: '#3b82f6', weight: 2, fillOpacity: 0.15 },
+    })
+    geoLayer.eachLayer((l: any) => featureGroupRef.current?.addLayer(l))
+    const bounds = featureGroupRef.current.getBounds()
+    if (bounds.isValid()) {
+      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] })
+    }
+  }, [restoreGeometry])
 
   const clearPreviousLayers = useCallback(() => {
     if (featureGroupRef.current) {

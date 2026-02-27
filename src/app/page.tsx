@@ -23,6 +23,7 @@ export default function Home() {
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [searchArea, setSearchArea] = useState(null)
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
+  const [restoreGeometry, setRestoreGeometry] = useState<{ geometry: any; ts: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDark, setIsDark] = useState(true)
   const [mapStyle, setMapStyle] = useState<'default' | 'themed' | 'satellite'>('default')
@@ -307,6 +308,7 @@ export default function Home() {
           mapStyle={mapStyle}
           userLocation={userLocation}
           popupColumns={popupColumns}
+          restoreGeometry={restoreGeometry}
         />
         {isLoading && (
           <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[1000] backdrop-blur-sm text-sm font-medium px-4 py-2 rounded-full shadow-lg border ${d.loadingBg}`}>
@@ -484,6 +486,7 @@ export default function Home() {
                 setSortBy(restoredSortBy)
                 setSortDir(restoredSortDir)
                 setActiveSearchId(id)
+                setRestoreGeometry({ geometry: geo, ts: Date.now() })
               }}
               onDeleteCurrentSearch={() => handleSearch(null)}
               activeSearchId={activeSearchId}

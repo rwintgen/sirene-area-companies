@@ -86,8 +86,9 @@ async function getColumnsFromDb(): Promise<string[]> {
 
 export async function GET() {
   try {
-    const columns = isDbConfigured() ? await getColumnsFromDb() : loadFromCsv().columns
-    return NextResponse.json({ columns })
+    const usingDb = isDbConfigured()
+    const columns = usingDb ? await getColumnsFromDb() : loadFromCsv().columns
+    return NextResponse.json({ columns, sampleData: !usingDb })
   } catch (error) {
     console.error('Columns API error:', error)
     return NextResponse.json({ error: 'Failed to read columns', details: String(error) }, { status: 500 })
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     if (isDbConfigured()) {
       const { companies, columns } = await searchWithPostGIS(geometry)
       console.log(`[postgis] Found ${companies.length} establishments.`)
-      return NextResponse.json({ companies, columns })
+      return NextResponse.json({ companies, columns, sampleData: false })
     }
 
     // CSV fallback
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     const { companies: all, columns } = loadFromCsv()
     const companies = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
     console.log(`[csv] Found ${companies.length} establishments.`)
-    return NextResponse.json({ companies, columns })
+    return NextResponse.json({ companies, columns, sampleData: true })
   } catch (error) {
     console.error('Search API error:', error)
     return NextResponse.json({ error: 'Search failed', details: String(error) }, { status: 500 })

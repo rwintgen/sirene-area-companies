@@ -25,6 +25,7 @@ export default function Home() {
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
   const [restoreGeometry, setRestoreGeometry] = useState<{ geometry: any; ts: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSampleData, setIsSampleData] = useState<boolean | null>(null)
   const [isDark, setIsDark] = useState(true)
   const [mapStyle, setMapStyle] = useState<'default' | 'themed' | 'satellite'>('themed')
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
@@ -116,6 +117,7 @@ export default function Home() {
           setListColumns((prev) => prev.filter((c) => display.includes(c)))
           setPopupColumns((prev) => prev.filter((c) => display.includes(c)))
         }
+        if (typeof data.sampleData === 'boolean') setIsSampleData(data.sampleData)
       })
       .catch(console.error)
   }, [])
@@ -171,6 +173,7 @@ export default function Home() {
       setSearchArea(geometry)
       setSelectedCompany(null)
       setActiveSearchId(null) // cleared when drawing a new shape manually
+      if (typeof data.sampleData === 'boolean') setIsSampleData(data.sampleData)
       if (data.columns && columns.length === 0) {
         setColumns(data.columns)
         const display = data.columns.filter((c: string) => !HIDDEN_COLS.includes(c))
@@ -319,6 +322,15 @@ export default function Home() {
 
       {/* Sidebar */}
       <div className={`w-[380px] h-full flex flex-col border-l shadow-2xl ${d.sidebar}`}>
+        {/* Sample data banner */}
+        {isSampleData && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span className="text-[11px] font-medium">Running on sample data — full dataset not connected</span>
+          </div>
+        )}
         {/* Header */}
         <div className={`px-5 pt-5 pb-4 border-b ${d.headerBorder}`}>
           <div className="flex items-center justify-between mb-4">

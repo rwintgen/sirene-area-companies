@@ -96,12 +96,12 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
         closeBtn: 'text-gray-400 hover:text-gray-700',
         sectionLabel: 'text-gray-400',
         check: 'border-gray-300 bg-white',
-        checkActive: 'border-blue-600 bg-blue-600',
+        checkActive: 'border-violet-600 bg-violet-600',
         colItem: 'text-gray-600 hover:bg-gray-50',
         allBtn: 'text-gray-400 hover:text-gray-600',
         formatBtn: 'text-gray-500 border-gray-200 hover:border-gray-300',
-        formatActive: 'text-white bg-blue-600 border-blue-600',
-        exportBtn: 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 disabled:cursor-not-allowed',
+        formatActive: 'text-white bg-violet-600 border-violet-600',
+        exportBtn: 'bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-40 disabled:cursor-not-allowed',
         divider: 'border-gray-100',
       }
 

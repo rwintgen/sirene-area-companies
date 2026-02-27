@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { PRESET_FILTERS, PRESET_GROUPS, applyPresets } from '@/lib/presets'
 
 interface Filter {
   column: string
@@ -55,6 +56,8 @@ export default function CompanyList({
   onSortChange,
   filters,
   onFiltersChange,
+  activePresets,
+  onPresetsChange,
 }: {
   companies: any[]
   selectedCompany: any
@@ -68,14 +71,17 @@ export default function CompanyList({
   onSortChange: (col: string | null, dir: 'asc' | 'desc') => void
   filters: Filter[]
   onFiltersChange: (f: Filter[]) => void
+  activePresets: string[]
+  onPresetsChange: (ids: string[]) => void
 }) {
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
+  const [showPresets, setShowPresets] = useState(false)
   const itemsPerPage = 20
 
   useEffect(() => {
     setPage(1)
-  }, [companies, sortBy, sortDir, filters])
+  }, [companies, sortBy, sortDir, filters, activePresets])
 
   /**
    * Derives the displayable company list by applying active filters,
@@ -99,6 +105,8 @@ export default function CompanyList({
       })
     }
 
+    result = applyPresets(result, activePresets)
+
     if (sortBy) {
       result.sort((a, b) => {
         const va = (a.fields?.[sortBy] ?? '').toString()
@@ -115,7 +123,7 @@ export default function CompanyList({
     }
 
     return result
-  }, [companies, filters, sortBy, sortDir])
+  }, [companies, filters, activePresets, sortBy, sortDir])
 
   const totalPages = Math.ceil(processed.length / itemsPerPage)
   const paginatedCompanies = processed.slice(
@@ -151,6 +159,9 @@ export default function CompanyList({
         paginationNum: 'text-gray-500',
         toolbarBtn: 'text-gray-500 hover:text-gray-300 bg-white/5 hover:bg-white/10 border-white/10',
         toolbarActive: 'text-white bg-white/10 border-white/20',
+        presetTag: 'bg-white/5 text-gray-500 border-white/8 hover:bg-white/10 hover:text-gray-300',
+        presetTagActive: 'bg-white/15 text-white border-white/25',
+        presetGroup: 'text-gray-600',
         select: 'bg-white/5 border-white/10 text-gray-300 text-xs',
         input: 'bg-white/5 border-white/10 text-gray-300 text-xs placeholder-gray-600',
         filterBg: 'bg-white/3 border-white/5',
@@ -164,20 +175,23 @@ export default function CompanyList({
         label: 'text-gray-500',
         badge: 'text-gray-500 bg-gray-100',
         itemHover: 'hover:bg-gray-100',
-        itemSelectedBg: 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100',
+        itemSelectedBg: 'bg-violet-50 border-violet-300 shadow-sm shadow-violet-100',
         itemText: 'text-gray-800',
         itemSub: 'text-gray-400',
         paginationBorder: 'border-gray-200',
         paginationBtn: 'text-gray-500 hover:text-gray-900 disabled:hover:text-gray-500',
         paginationNum: 'text-gray-400',
         toolbarBtn: 'text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200',
-        toolbarActive: 'text-blue-600 bg-blue-50 border-blue-300',
+        toolbarActive: 'text-violet-600 bg-violet-50 border-violet-300',
+        presetTag: 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700',
+        presetTagActive: 'bg-violet-50 text-violet-700 border-violet-300',
+        presetGroup: 'text-gray-400',
         select: 'bg-white border-gray-200 text-gray-700 text-xs',
         input: 'bg-white border-gray-200 text-gray-700 text-xs placeholder-gray-400',
         filterBg: 'bg-gray-50 border-gray-200',
         filterRemove: 'text-gray-400 hover:text-red-500',
         sortIcon: 'text-gray-400 hover:text-gray-700',
-        activeSortIcon: 'text-blue-600',
+        activeSortIcon: 'text-violet-600',
         fieldLabel: 'text-gray-400',
       }
 
@@ -219,6 +233,16 @@ export default function CompanyList({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4V4" />
             </svg>
           </button>
+          {/* Preset tags toggle */}
+          <button
+            onClick={() => setShowPresets(!showPresets)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${activePresets.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
+            data-tooltip="Quick filters" data-tooltip-pos="left"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </button>
           {/* Filter toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -231,6 +255,49 @@ export default function CompanyList({
           </button>
         </div>
       </div>
+
+      {/* Preset tags */}
+      {showPresets && (
+        <div className={`rounded-lg border p-2 mb-2 ${t.filterBg}`}>
+          {PRESET_GROUPS.map((group) => {
+            const presets = PRESET_FILTERS.filter((p) => p.group === group)
+            return (
+              <div key={group} className="mb-1.5 last:mb-0">
+                <span className={`text-[9px] uppercase tracking-widest font-semibold ${t.presetGroup}`}>{group}</span>
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                  {presets.map((preset) => {
+                    const isActive = activePresets.includes(preset.id)
+                    return (
+                      <button
+                        key={preset.id}
+                        onClick={() => {
+                          if (isActive) {
+                            onPresetsChange(activePresets.filter((id) => id !== preset.id))
+                          } else {
+                            onPresetsChange([...activePresets, preset.id])
+                          }
+                        }}
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all ${isActive ? t.presetTagActive : t.presetTag}`}
+                        data-tooltip={preset.description}
+                      >
+                        {preset.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+          {activePresets.length > 0 && (
+            <button
+              onClick={() => onPresetsChange([])}
+              className={`text-[10px] font-medium mt-1.5 ${t.filterRemove}`}
+            >
+              Clear all tags
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Sort bar */}
       {sortBy !== null && (
@@ -342,7 +409,7 @@ export default function CompanyList({
                       const val = company.fields?.[col] ?? ''
                       if (ci === 0) {
                         return (
-                          <p key={col} className={`text-sm font-medium leading-tight truncate ${isSelected ? (isDark ? 'text-white' : 'text-blue-500') : t.itemText}`}>
+                          <p key={col} className={`text-sm font-medium leading-tight truncate ${isSelected ? (isDark ? 'text-white' : 'text-violet-600') : t.itemText}`}>
                             {val || '—'}
                           </p>
                         )

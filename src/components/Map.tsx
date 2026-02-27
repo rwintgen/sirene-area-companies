@@ -147,7 +147,7 @@ export default function Map({
     featureGroupRef.current.clearLayers()
     const feature = { type: 'Feature', geometry: restoreGeometry.geometry, properties: {} }
     const geoLayer = L.geoJSON(feature as any, {
-      style: { color: '#3b82f6', weight: 2, fillOpacity: 0.15 },
+      style: { color: '#8b5cf6', weight: 2, fillOpacity: 0.15 },
     })
     geoLayer.eachLayer((l: any) => featureGroupRef.current?.addLayer(l))
     const bounds = featureGroupRef.current.getBounds()
@@ -225,7 +225,7 @@ export default function Map({
           draw={{
             polygon: {
               shapeOptions: {
-                color: '#3b82f6',
+                color: '#8b5cf6',
                 weight: 2,
                 fillOpacity: 0.15,
               },
@@ -234,7 +234,7 @@ export default function Map({
             },
             rectangle: {
               shapeOptions: {
-                color: '#3b82f6',
+                color: '#8b5cf6',
                 weight: 2,
                 fillOpacity: 0.15,
               },
@@ -247,7 +247,7 @@ export default function Map({
           edit={{
             edit: {
               selectedPathOptions: {
-                color: '#60a5fa',
+                color: '#a78bfa',
                 fillOpacity: 0.25,
               },
             } as any,

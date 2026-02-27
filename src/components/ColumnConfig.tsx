@@ -55,14 +55,14 @@ export default function ColumnConfig({
         bg: 'bg-white border-gray-200',
         title: 'text-gray-900',
         closeBtn: 'text-gray-400 hover:text-gray-700',
-        tabActive: 'text-gray-900 border-blue-600',
+        tabActive: 'text-gray-900 border-violet-600',
         tab: 'text-gray-400 hover:text-gray-700',
         tabBorder: 'border-gray-100',
         allBtn: 'text-gray-400 hover:text-gray-700',
         item: 'hover:bg-gray-50',
         itemText: 'text-gray-700',
         check: 'border-gray-300 bg-white',
-        checkActive: 'border-blue-600 bg-blue-600',
+        checkActive: 'border-violet-600 bg-violet-600',
       }
 
   return (

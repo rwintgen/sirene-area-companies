@@ -116,13 +116,13 @@ export default function SearchBar({ onSelect, isDark }: Props) {
         spinner: 'border-gray-600 border-t-gray-300',
       }
     : {
-        wrapper: 'bg-gray-50 border-gray-200 focus-within:border-blue-400 focus-within:bg-white',
+        wrapper: 'bg-gray-50 border-gray-200 focus-within:border-violet-400 focus-within:bg-white',
         input: 'text-gray-900 placeholder-gray-400 bg-transparent',
         icon: 'text-gray-400',
         clearBtn: 'text-gray-400 hover:text-gray-600',
         dropdown: 'bg-white border-gray-200',
         item: 'hover:bg-gray-50 text-gray-700',
-        itemActive: 'bg-blue-50 text-gray-900',
+        itemActive: 'bg-violet-50 text-gray-900',
         itemSub: 'text-gray-400',
         spinner: 'border-gray-200 border-t-gray-500',
       }

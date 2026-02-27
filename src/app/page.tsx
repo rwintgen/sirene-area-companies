@@ -8,6 +8,7 @@ import SearchBar from '@/components/SearchBar'
 import AuthModal from '@/components/AuthModal'
 import CompanyDetail from '@/components/CompanyDetail'
 import ExportModal from '@/components/ExportModal'
+import { applyPresets } from '@/lib/presets'
 import { auth, db } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut } from 'firebase/auth'
@@ -53,6 +54,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]>([])
+  const [activePresets, setActivePresets] = useState<string[]>([])
 
   /** Apply the OS color-scheme preference on first mount (before any user pref overrides). */
   useEffect(() => {
@@ -211,24 +213,26 @@ export default function Home() {
    * Used to keep map markers in sync with the filtered list view.
    */
   const mapCompanies = useMemo(() => {
-    if (filters.length === 0) return companies
-    let result = [...companies]
-    for (const f of filters) {
-      if (!f.column) continue
-      result = result.filter((c: any) => {
-        const val = (c.fields?.[f.column] ?? '').toString().toLowerCase()
-        let match: boolean
-        switch (f.operator) {
-          case 'contains': match = val.includes(f.value.toLowerCase()); break
-          case 'equals': match = val === f.value.toLowerCase(); break
-          case 'empty': match = val.length === 0; break
-          default: match = true
-        }
-        return f.negate ? !match : match
-      })
+    let result: any[] = [...companies]
+    if (filters.length > 0) {
+      for (const f of filters) {
+        if (!f.column) continue
+        result = result.filter((c: any) => {
+          const val = (c.fields?.[f.column] ?? '').toString().toLowerCase()
+          let match: boolean
+          switch (f.operator) {
+            case 'contains': match = val.includes(f.value.toLowerCase()); break
+            case 'equals': match = val === f.value.toLowerCase(); break
+            case 'empty': match = val.length === 0; break
+            default: match = true
+          }
+          return f.negate ? !match : match
+        })
+      }
     }
+    result = applyPresets(result, activePresets)
     return result
-  }, [companies, filters])
+  }, [companies, filters, activePresets])
 
   const handleSignOut = async () => {
     await signOut(auth)
@@ -290,11 +294,11 @@ export default function Home() {
         dropdownLabel: 'text-gray-400',
         dropdownActive: 'text-gray-900 bg-gray-100',
         dropdownItem: 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
-        tabActive: 'text-gray-900 border-blue-600',
+        tabActive: 'text-gray-900 border-violet-600',
         tab: 'text-gray-400 hover:text-gray-600 border-transparent',
         tabBorder: 'border-gray-100',
         check: 'border-gray-300 bg-white',
-        checkActive: 'border-blue-600 bg-blue-600',
+        checkActive: 'border-violet-600 bg-violet-600',
         colItem: 'text-gray-600 hover:bg-gray-50',
         allBtn: 'text-gray-400 hover:text-gray-600',
         userName: 'text-gray-500',
@@ -548,6 +552,8 @@ export default function Home() {
             onSortChange={handleSortChange}
             filters={filters}
             onFiltersChange={setFilters}
+            activePresets={activePresets}
+            onPresetsChange={setActivePresets}
           />
         </div>
 
@@ -561,7 +567,7 @@ export default function Home() {
             disabled={companies.length === 0}
             className={`text-[10px] font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
               companies.length > 0
-                ? isDark ? 'text-gray-300 border-white/15 hover:border-white/30 hover:bg-white/5' : 'text-blue-600 border-blue-300 hover:border-blue-400 hover:bg-blue-50'
+                ? isDark ? 'text-gray-300 border-white/15 hover:border-white/30 hover:bg-white/5' : 'text-violet-600 border-violet-300 hover:border-violet-400 hover:bg-violet-50'
                 : isDark ? 'text-gray-700 border-white/5 cursor-not-allowed' : 'text-gray-400 border-gray-200 cursor-not-allowed'
             }`}
             data-tooltip="Export search results" data-tooltip-pos="left"

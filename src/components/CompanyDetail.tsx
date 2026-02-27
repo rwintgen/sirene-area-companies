@@ -10,6 +10,10 @@ interface Props {
   onAskAI: (company: any) => void
 }
 
+/**
+ * Full-screen modal showing all JSONB fields for a single establishment.
+ * Includes an AI inquiry button (currently a placeholder).
+ */
 export default function CompanyDetail({ company, displayColumns, isDark, onClose, onAskAI }: Props) {
   const [aiLoading, setAiLoading] = useState(false)
 

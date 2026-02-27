@@ -16,6 +16,10 @@ interface Props {
   isDark: boolean
 }
 
+/**
+ * Geocoding search bar backed by the Nominatim API.
+ * Debounces input by 300 ms and supports keyboard navigation.
+ */
 export default function SearchBar({ onSelect, isDark }: Props) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -93,7 +97,7 @@ export default function SearchBar({ onSelect, isDark }: Props) {
     inputRef.current?.focus()
   }
 
-  // Shorten a display_name for rendering: keep first 2 parts as main, rest as sub
+  /** Splits a Nominatim display_name into a short main label and a secondary line. */
   const parseName = (display_name: string) => {
     const parts = display_name.split(', ')
     return { main: parts.slice(0, 2).join(', '), sub: parts.slice(2, 4).join(', ') }
@@ -126,7 +130,6 @@ export default function SearchBar({ onSelect, isDark }: Props) {
   return (
     <div ref={containerRef} className="relative">
       <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${t.wrapper}`}>
-        {/* Search icon or spinner */}
         {isLoading ? (
           <div className={`w-4 h-4 flex-shrink-0 rounded-full border-2 animate-spin ${t.spinner}`} />
         ) : (

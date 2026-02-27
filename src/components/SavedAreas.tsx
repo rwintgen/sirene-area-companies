@@ -11,6 +11,11 @@ interface Filter {
   value: string
 }
 
+/**
+ * Collapsible panel listing saved searches from Firestore.
+ * Supports save (inline name input), rename, delete, and restore —
+ * restoring re-applies the geometry, filters, and sort to the main view.
+ */
 export default function SavedAreas({
   onRestoreSearch,
   currentSearchArea,

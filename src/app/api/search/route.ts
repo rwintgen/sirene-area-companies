@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isDbConfigured, getPool } from '@/lib/db'
 
-// ─── CSV fallback (used when no DB is configured) ──────────────────────────
 import fs from 'fs'
 import path from 'path'
 import { parse } from 'csv-parse/sync'
@@ -14,11 +13,14 @@ interface Company {
   fields: Record<string, string>
 }
 
-// ─── CSV fallback ──────────────────────────────────────────────────────────
-
 let csvCompaniesCache: Company[] | null = null
 let csvColumnsCache: string[] | null = null
 
+/**
+ * Parses the sample CSV into an in-memory company array.
+ * Results are cached after the first call for the lifetime of the process.
+ * Used as a fallback when no PostGIS database is configured.
+ */
 function loadFromCsv(): { companies: Company[]; columns: string[] } {
   if (csvCompaniesCache && csvColumnsCache) {
     return { companies: csvCompaniesCache, columns: csvColumnsCache }
@@ -48,10 +50,13 @@ function loadFromCsv(): { companies: Company[]; columns: string[] } {
   return { companies: csvCompaniesCache, columns: csvColumnsCache }
 }
 
-// ─── PostGIS query ──────────────────────────────────────────────────────────
-
 let dbColumnsCache: string[] | null = null
 
+/**
+ * Queries the PostGIS `establishments` table for all rows whose `geom`
+ * falls within the given GeoJSON geometry (polygon/rectangle).
+ * Column names are lazily cached from the first result's JSONB `fields` keys.
+ */
 async function searchWithPostGIS(geometry: any): Promise<{ companies: Company[]; columns: string[] }> {
   const pool = await getPool()
   const geoJson = JSON.stringify(geometry)
@@ -82,8 +87,7 @@ async function getColumnsFromDb(): Promise<string[]> {
   return dbColumnsCache ?? []
 }
 
-// ─── Route handlers ────────────────────────────────────────────────────────
-
+/** GET: returns available column names and whether the app is running on sample data. */
 export async function GET() {
   try {
     const usingDb = isDbConfigured()
@@ -95,6 +99,7 @@ export async function GET() {
   }
 }
 
+/** POST: accepts a GeoJSON geometry and returns companies within that area. */
 export async function POST(req: NextRequest) {
   try {
     const { geometry } = await req.json()
@@ -110,7 +115,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ companies, columns, sampleData: false })
     }
 
-    // CSV fallback
     const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
     const { point } = await import('@turf/helpers')
     const { companies: all, columns } = loadFromCsv()

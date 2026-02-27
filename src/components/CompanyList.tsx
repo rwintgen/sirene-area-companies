@@ -9,8 +9,11 @@ interface Filter {
   value: string
 }
 
-// Native select wrapped in a div that shows a truncated label overlay.
-// The select is transparent and covers the label, capturing all native events.
+/**
+ * Transparent native `<select>` overlaid on a truncated text label.
+ * Preserves all native keyboard/accessibility behaviour while
+ * allowing fully custom display styling via the parent container.
+ */
 function ColSelect({ value, onChange, columns, className }: {
   value: string
   onChange: (val: string) => void
@@ -34,6 +37,11 @@ function ColSelect({ value, onChange, columns, className }: {
   )
 }
 
+/**
+ * Paginated, sortable, filterable list of establishments.
+ * Applies filters and sort on the full company array via a `useMemo`,
+ * then renders a 20-items-per-page paginated view.
+ */
 export default function CompanyList({
   companies,
   selectedCompany,
@@ -69,11 +77,13 @@ export default function CompanyList({
     setPage(1)
   }, [companies, sortBy, sortDir, filters])
 
-  // Apply filters then sort
+  /**
+   * Derives the displayable company list by applying active filters,
+   * then sorting (numeric-aware, French locale fallback).
+   */
   const processed = useMemo(() => {
     let result = [...companies]
 
-    // Filters
     for (const f of filters) {
       if (!f.column) continue
       result = result.filter((c) => {
@@ -89,7 +99,6 @@ export default function CompanyList({
       })
     }
 
-    // Sort
     if (sortBy) {
       result.sort((a, b) => {
         const va = (a.fields?.[sortBy] ?? '').toString()

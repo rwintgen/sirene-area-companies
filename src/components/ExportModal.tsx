@@ -9,6 +9,10 @@ interface Props {
   onClose: () => void
 }
 
+/**
+ * Modal for exporting the current search results as CSV or JSON.
+ * Lets the user select which columns to include; coordinates are always exported.
+ */
 export default function ExportModal({ companies, displayColumns, isDark, onClose }: Props) {
   const [selectedCols, setSelectedCols] = useState<string[]>([...displayColumns])
   const [format, setFormat] = useState<'csv' | 'json'>('csv')
@@ -26,6 +30,7 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
     )
   }
 
+  /** Builds a CSV or JSON blob from the selected columns and triggers a download. */
   const handleExport = () => {
     if (selectedCols.length === 0) return
 
@@ -34,7 +39,6 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
       for (const col of selectedCols) {
         obj[col] = (c.fields?.[col] ?? '').toString()
       }
-      // Always include coordinates if available
       if (c.lat != null) obj['Latitude'] = String(c.lat)
       if (c.lon != null) obj['Longitude'] = String(c.lon)
       return obj

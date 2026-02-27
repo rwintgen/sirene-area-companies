@@ -41,25 +41,25 @@ export default function Home() {
 
   const prefsKey = (uid: string) => `prefs_${uid}`
 
-  // Column system
   const [columns, setColumns] = useState<string[]>([])
   const [displayColumns, setDisplayColumns] = useState<string[]>([])
   const [listColumns, setListColumns] = useState<string[]>(DEFAULT_LIST_COLS)
   const [popupColumns, setPopupColumns] = useState<string[]>(DEFAULT_POPUP_COLS)
 
-  // Settings panel sub-section
   const [settingsTab, setSettingsTab] = useState<'general' | 'list' | 'popup'>('general')
 
-  // Sort & filter
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]>([])
 
-  // Load preferences: Firestore first (source of truth), localStorage as fallback/cache
+  /**
+   * Load user preferences on auth change.
+   * localStorage is applied first to avoid a flash of defaults,
+   * then Firestore is fetched for cross-device sync.
+   */
   useEffect(() => {
     if (!user) { profileLoaded.current = false; return }
     const key = prefsKey(user.uid)
-    // Apply localStorage immediately so there's no flash of default settings
     try {
       const cached = localStorage.getItem(key)
       if (cached) {
@@ -70,7 +70,6 @@ export default function Home() {
         if (typeof p.isDark === 'boolean') setIsDark(p.isDark)
       }
     } catch (_) {}
-    // Then fetch from Firestore and override (handles cross-device sync)
     getDoc(doc(db, 'userProfiles', user.uid))
       .then((snap) => {
         if (snap.exists()) {
@@ -79,7 +78,6 @@ export default function Home() {
           if (Array.isArray(p.popupColumns) && p.popupColumns.length > 0) setPopupColumns(p.popupColumns)
           if (p.mapStyle) setMapStyle(p.mapStyle)
           if (typeof p.isDark === 'boolean') setIsDark(p.isDark)
-          // Keep localStorage in sync with remote
           try { localStorage.setItem(key, JSON.stringify(p)) } catch (_) {}
         }
         profileLoaded.current = true
@@ -90,13 +88,14 @@ export default function Home() {
       })
   }, [user])
 
-  // Auto-save preferences: localStorage immediately, Firestore debounced
+  /**
+   * Persist preferences: writes to localStorage immediately for zero-latency,
+   * then debounces a Firestore write by 1 s to avoid excessive network calls.
+   */
   useEffect(() => {
     if (!user || !profileLoaded.current) return
     const prefs = { listColumns, popupColumns, mapStyle, isDark }
-    // Write to localStorage immediately (instant, no latency)
     try { localStorage.setItem(prefsKey(user.uid), JSON.stringify(prefs)) } catch (_) {}
-    // Debounce Firestore write
     const timer = setTimeout(() => {
       setDoc(doc(db, 'userProfiles', user.uid), prefs, { merge: true })
         .then(() => { setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000) })
@@ -105,7 +104,6 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [user, listColumns, popupColumns, mapStyle, isDark])
 
-  // Fetch columns on mount
   useEffect(() => {
     fetch('/api/search')
       .then((r) => r.json())
@@ -172,7 +170,7 @@ export default function Home() {
       setCompanies(data.companies)
       setSearchArea(geometry)
       setSelectedCompany(null)
-      setActiveSearchId(null) // cleared when drawing a new shape manually
+      setActiveSearchId(null)
       if (typeof data.sampleData === 'boolean') setIsSampleData(data.sampleData)
       if (data.columns && columns.length === 0) {
         setColumns(data.columns)
@@ -191,7 +189,10 @@ export default function Home() {
     setSortDir(dir)
   }, [])
 
-  // Apply filters to companies so the map only shows matching markers
+  /**
+   * Derived company list with active filters applied.
+   * Used to keep map markers in sync with the filtered list view.
+   */
   const mapCompanies = useMemo(() => {
     if (filters.length === 0) return companies
     let result = [...companies]
@@ -221,11 +222,9 @@ export default function Home() {
   }, [])
 
   const handleAskAI = useCallback((company: any) => {
-    // Placeholder — will be wired to actual AI call later
     console.log('Ask AI about:', company)
   }, [])
 
-  // Toggle column helper for settings panel
   const toggleCol = (col: string, target: 'list' | 'popup') => {
     const setter = target === 'list' ? setListColumns : setPopupColumns
     const current = target === 'list' ? listColumns : popupColumns
@@ -290,7 +289,6 @@ export default function Home() {
         loadingBg: 'bg-white/90 text-gray-900 border-gray-200',
       }
 
-  // Column list for current settings tab
   const activeColTarget = settingsTab === 'list' ? 'list' : 'popup'
   const activeCols = settingsTab === 'list' ? listColumns : popupColumns
   const activeColSetter = settingsTab === 'list' ? setListColumns : setPopupColumns

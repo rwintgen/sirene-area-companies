@@ -7,7 +7,7 @@ A full-stack web app to draw a custom area on a map of France and instantly retr
 ## Features
 
 - **Draw on the map** — polygon or rectangle selection using Leaflet Draw
-- **SIRENE data** — queries a local CSV of French company establishments (SIRET, name, address, geolocation)
+- **SIRENE data** — queries a PostGIS database of French company establishments (SIRET, name, address, geolocation), with an in-memory CSV fallback for quick local development
 - **Company list** — sortable, filterable table with configurable columns
   - Filter operators: `contains`, `equals`, `empty`, with a NOT toggle
   - Sort by any column, ascending or descending
@@ -16,20 +16,38 @@ A full-stack web app to draw a custom area on a map of France and instantly retr
 - **Export** — download current results as CSV or JSON, with field selection
 - **Saved searches** — sign in to save, restore, rename, and delete named searches (persisted in Firestore)
 - **Map styles** — Default (OpenStreetMap), Themed (CartoCDN light/dark), Satellite (Esri)
-- **Dark / Light theme**
-- **Geocoding** — search for any location in France to pan the map
+- **Dark / Light theme** — persisted per-user in Firestore with localStorage cache for instant restore
+- **Geocoding** — search for any location in France (Nominatim) to pan the map
 - **Geolocate** — jump to your current GPS position
 
 ## Tech Stack
 
-| Layer      | Technology                         |
-|------------|-------------------------------------|
-| Framework  | Next.js 14 (App Router, TypeScript) |
-| Styling    | Tailwind CSS 3                      |
-| Map        | Leaflet + react-leaflet + leaflet-draw |
-| Auth       | Firebase Authentication             |
-| Database   | Cloud Firestore                     |
-| Data       | SIRENE v3 CSV (local, loaded in-memory) |
+| Layer       | Technology                                              |
+|-------------|---------------------------------------------------------|
+| Framework   | Next.js 14 (App Router, TypeScript)                     |
+| Styling     | Tailwind CSS 3                                          |
+| Map         | Leaflet + react-leaflet + leaflet-draw                  |
+| Auth        | Firebase Authentication (Google + email/password)       |
+| User data   | Cloud Firestore (preferences, saved searches)           |
+| Geo queries | Cloud SQL (PostgreSQL 15) + PostGIS                     |
+| Fallback    | In-memory CSV with Turf.js point-in-polygon             |
+| Hosting     | Firebase App Hosting                                    |
+
+## Architecture
+
+```
+Browser ──▶ Next.js App (React + Leaflet)
+               │
+               ├──▶ /api/search (POST)  ──▶ PostGIS (ST_Contains)  ◀── Cloud SQL
+               │                        └──▶ CSV fallback (Turf.js)
+               │
+               ├──▶ Firebase Auth
+               └──▶ Cloud Firestore (user prefs & saved searches)
+```
+
+- **`/api/search` route** — accepts a GeoJSON geometry. When a PostGIS database is configured it runs a spatial `ST_Contains` query; otherwise it falls back to parsing the sample CSV in memory with Turf.js `booleanPointInPolygon`.
+- **Dynamic columns** — all CSV columns are stored as a JSONB `fields` column in PostgreSQL, allowing the UI to display any column without schema changes.
+- **Preferences** — written to `localStorage` immediately for zero-latency, then debounced to Firestore for cross-device sync.
 
 ---
 
@@ -41,6 +59,7 @@ We welcome contributions of all kinds — open an issue or submit a pull request
 
 - Node.js 18+ and npm
 - A Google account (for Firebase)
+- *(Optional)* A Cloud SQL PostgreSQL instance for the full dataset
 
 ### Installation & Setup
 
@@ -82,16 +101,27 @@ We welcome contributions of all kinds — open an issue or submit a pull request
       }
       ```
 
-4. **Set up the data file:**
+4. **Set up the data source:**
 
-   A sample dataset (`data/economicref-france-sirene-v3-sample.csv`) is included so you can run the app immediately.
+   **Option A — Sample CSV (quickstart, no database needed):**
 
-   To use the full dataset, download it from:
-   > [https://public.opendatasoft.com/explore/assets/economicref-france-sirene-v3/](https://public.opendatasoft.com/explore/assets/economicref-france-sirene-v3/)
+   A sample dataset is included at `data/economicref-france-sirene-v3-sample.csv`. The app falls back to it automatically when no database connection is configured. An amber banner in the sidebar indicates sample-data mode.
 
-   Replace the sample file with the full download. The app loads it in-memory on the first request — expect a longer cold start with the full dataset.
+   **Option B — Full dataset via PostGIS:**
 
-   The file must have a `Géolocalisation de l'établissement` column containing WGS84 coordinates in `"lat,lon"` format.
+   1. Create a Cloud SQL PostgreSQL 15 instance (or any PostgreSQL 15+ with PostGIS).
+   2. Apply the schema:
+      ```bash
+      psql $DATABASE_URL -f scripts/setup-db.sql
+      ```
+   3. Download the full SIRENE CSV from [Open Data Soft](https://public.opendatasoft.com/explore/assets/economicref-france-sirene-v3/) and import it:
+      ```bash
+      DATABASE_URL=postgresql://user:pass@localhost:5432/sirene_db node scripts/import-sirene.js path/to/file.csv
+      ```
+   4. For local development, run the Cloud SQL Auth Proxy and set `DATABASE_URL` in `.env.local`:
+      ```
+      DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/sirene_db
+      ```
 
 5. **Run the development server:**
    ```bash
@@ -102,9 +132,26 @@ We welcome contributions of all kinds — open an issue or submit a pull request
 
 ---
 
+## Database Schema
+
+The PostGIS schema lives in [`scripts/setup-db.sql`](scripts/setup-db.sql):
+
+| Column  | Type                  | Notes                                     |
+|---------|-----------------------|-------------------------------------------|
+| `id`    | `SERIAL PRIMARY KEY`  | Auto-increment                            |
+| `siret` | `VARCHAR(14) UNIQUE`  | French establishment identifier           |
+| `lat`   | `DOUBLE PRECISION`    | Latitude (WGS 84)                         |
+| `lon`   | `DOUBLE PRECISION`    | Longitude (WGS 84)                        |
+| `geom`  | `GEOMETRY(Point,4326)`| PostGIS point for spatial queries         |
+| `fields`| `JSONB`               | All CSV columns stored as key-value pairs |
+
+Indexes: `GIST` on `geom`, `B-tree` on `siret`, `GIN` on `fields`.
+
+---
+
 ## Deployment
 
-This app requires server-side rendering (Next.js API routes handle the CSV search). **Firebase App Hosting** is the recommended deployment target as it natively supports Next.js SSR.
+This app requires server-side rendering (Next.js API routes handle the search). **Firebase App Hosting** is the recommended deployment target as it natively supports Next.js SSR.
 
 ### Deploy with Firebase App Hosting
 
@@ -116,23 +163,35 @@ This app requires server-side rendering (Next.js API routes handle the CSV searc
 2. **Log in and initialise App Hosting:**
    ```bash
    firebase login
-   firebase experiments:enable webframeworks
-   firebase init hosting
+   firebase apphosting:backends:create
    ```
-   - Select **Use an existing project** and choose your Firebase project.
-   - Choose **Use the current directory** as the public directory — Firebase will detect Next.js automatically.
-   - Answer **Yes** to "Configure as a single-page app" → **No**.
+   Connect the GitHub repository and select the `main` branch for CI/CD deploys.
 
-3. **Create a `.env.production` file** with your Firebase config exposed as Next.js public env vars (if you refactor to use `NEXT_PUBLIC_` env vars instead of the hardcoded `firebase.ts`). Alternatively, the current approach of keeping credentials in `src/lib/firebase.ts` works for personal/single-owner deployments.
+3. **Configure environment variables** in `apphosting.yaml`:
+   - `CLOUD_SQL_CONNECTION_NAME` — e.g. `project-id:region:instance-name`
+   - `DB_USER` — database user
+   - `DB_NAME` — database name
+   - `DB_PASSWORD` — stored as a Secret Manager secret
 
-4. **Deploy:**
+4. **Grant the App Hosting backend access to the secret:**
    ```bash
-   firebase deploy
+   firebase apphosting:secrets:grantaccess DB_PASSWORD --backend <backend-id>
    ```
 
-   Firebase App Hosting will build the Next.js app and deploy both the SSR functions and static assets automatically.
+5. **Push to `main`** — Firebase builds and deploys automatically.
 
-> **Note:** The full SIRENE CSV is large. For production, consider pre-loading it into **Firestore** or a **PostGIS** database and replacing the `/api/search` route with a proper geospatial query. The current in-memory approach works well for the sample dataset.
+---
+
+## NPM Scripts
+
+| Script        | Description                                        |
+|---------------|----------------------------------------------------|
+| `npm run dev` | Start the Next.js development server               |
+| `npm run build` | Production build                                 |
+| `npm run start` | Start the production server                      |
+| `npm run lint`  | Run ESLint                                       |
+| `npm run db:setup` | Apply the PostGIS schema via `psql`           |
+| `npm run db:import` | Import a SIRENE CSV into PostgreSQL           |
 
 ---
 
@@ -147,8 +206,9 @@ This app requires server-side rendering (Next.js API routes handle the CSV searc
 - [x] Saved searches (Firebase Auth + Firestore)
 - [x] Export results (CSV / JSON)
 - [x] Geocoding search bar
-- [ ] Migrate search backend to PostGIS for full-dataset performance
+- [x] PostGIS backend for full-dataset performance
+- [x] Deploy via Firebase App Hosting
+- [ ] Import full SIRENE dataset into Cloud SQL
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout
 - [ ] Add AI overview
-- [ ] Deploy the app to a hosting service like Vercel or Firebase Hosting.

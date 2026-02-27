@@ -1,9 +1,12 @@
-
+/**
+ * Firebase client SDK initialization.
+ * Config values are safe to expose — Firebase security is enforced
+ * server-side via Auth + Firestore security rules.
+ */
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAWZIge8FLfkN2agQFVtfl7plK-cvvlK6k",
   authDomain: "project-95adcfa2-64d3-4f79-be3.firebaseapp.com",
@@ -13,7 +16,6 @@ const firebaseConfig = {
   appId: "1:1026058192278:web:1df72ec83115ee83b549b7"
 };
 
-// Initialize Firebase
 let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);

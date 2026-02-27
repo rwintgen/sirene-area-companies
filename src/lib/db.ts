@@ -3,13 +3,22 @@ import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector'
 
 let pool: Pool | null = null
 
+/**
+ * Returns a singleton PostgreSQL connection pool.
+ *
+ * - **Production** (`CLOUD_SQL_CONNECTION_NAME` set): connects via the
+ *   Cloud SQL Node.js connector with IAM-based auth.
+ * - **Local dev** (`DATABASE_URL` set): connects directly, typically
+ *   through Cloud SQL Auth Proxy on localhost:5432.
+ *
+ * The first call verifies the connection before returning.
+ */
 export async function getPool(): Promise<Pool> {
   if (pool) return pool
 
   const instanceConnectionName = process.env.CLOUD_SQL_CONNECTION_NAME
 
   if (instanceConnectionName) {
-    // Production: use Cloud SQL connector — no password, uses IAM service account
     const connector = new Connector()
     const clientOpts = await connector.getOptions({
       instanceConnectionName,
@@ -21,7 +30,6 @@ export async function getPool(): Promise<Pool> {
       max: 5,
     })
   } else if (process.env.DATABASE_URL) {
-    // Local dev: DATABASE_URL pointing to Cloud SQL Proxy on localhost:5432
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: false,
@@ -33,13 +41,13 @@ export async function getPool(): Promise<Pool> {
     )
   }
 
-  // Verify connection on first use
   const client = await pool.connect()
   client.release()
   console.log('[db] Pool connected.')
   return pool
 }
 
+/** Checks whether any database connection env vars are set. */
 export function isDbConfigured(): boolean {
   return !!(process.env.DATABASE_URL || process.env.CLOUD_SQL_CONNECTION_NAME)
 }

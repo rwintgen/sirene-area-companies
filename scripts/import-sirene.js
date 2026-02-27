@@ -34,10 +34,13 @@ let total = 0
 let skipped = 0
 let batch = []
 
+/**
+ * Inserts an array of parsed rows into the `establishments` table
+ * using a single multi-row INSERT with ON CONFLICT upsert.
+ */
 async function insertBatch(rows) {
   if (rows.length === 0) return
 
-  // Build a multi-row INSERT
   const valuePlaceholders = []
   const params = []
   let i = 1
@@ -82,7 +85,6 @@ async function run() {
       const lon = parseFloat(parts[1].trim())
       if (!isFinite(lat) || !isFinite(lon)) { skipped++; return }
 
-      // Strip the geo column from the stored fields (it's stored separately)
       const fields = { ...row }
       delete fields[GEO_COL]
 

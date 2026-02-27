@@ -16,6 +16,10 @@ interface Props {
   isSigningIn: React.MutableRefObject<boolean>
 }
 
+/**
+ * Sign-in / sign-up modal supporting Google OAuth and email+password.
+ * Uses `isSigningIn` ref to prevent duplicate Google popup requests.
+ */
 export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
   const [tab, setTab] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
@@ -25,13 +29,13 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
   const [loading, setLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
+  /** Maps Firebase Auth error codes to user-friendly messages. */
   const friendlyError = (code: string) => {
     switch (code) {
       case 'auth/user-not-found':
@@ -121,7 +125,6 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
       onMouseDown={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
       <div className={`relative w-[360px] rounded-2xl border shadow-2xl p-6 ${t.modal}`}>
-        {/* Close */}
         <button
           onClick={onClose}
           className={`absolute top-4 right-4 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${t.closeBtn}`}
@@ -145,7 +148,6 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
           ))}
         </div>
 
-        {/* Form */}
         <form onSubmit={handleEmailAuth} className="space-y-3">
           {tab === 'signup' && (
             <div>
@@ -196,14 +198,12 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
           </button>
         </form>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 my-4">
           <div className={`flex-1 border-t ${t.divider}`} />
           <span className={`text-xs ${t.dividerText}`}>or</span>
           <div className={`flex-1 border-t ${t.divider}`} />
         </div>
 
-        {/* Google */}
         <button
           onClick={handleGoogle}
           className={`w-full flex items-center justify-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${t.googleBtn}`}

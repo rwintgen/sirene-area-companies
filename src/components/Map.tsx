@@ -30,6 +30,7 @@ const selectedIcon = new L.Icon({
   shadowSize: [62, 62],
 });
 
+/** Renders and auto-zooms a larger marker with a popup for the selected company. */
 function SelectedMarkerPopup({ selectedCompany, popupColumns, onExpand }: { selectedCompany: any; popupColumns: string[]; onExpand: (company: any) => void }) {
   const map = useMap()
   const markerRef = useRef<L.Marker | null>(null)
@@ -75,6 +76,7 @@ function SelectedMarkerPopup({ selectedCompany, popupColumns, onExpand }: { sele
   )
 }
 
+/** Flies the map to the user's GPS coordinates when they change. */
 function LocationUpdater({ userLocation }: { userLocation: [number, number] | null }) {
   const map = useMap()
   useEffect(() => {
@@ -85,11 +87,17 @@ function LocationUpdater({ userLocation }: { userLocation: [number, number] | nu
   return null
 }
 
+/** Captures the Leaflet map instance into a mutable ref for imperative access. */
 function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
   mapRef.current = useMap()
   return null
 }
 
+/**
+ * Main Leaflet map with polygon/rectangle draw tools.
+ * Renders company markers, handles draw-create/edit/delete events,
+ * and supports restoring saved search geometries.
+ */
 export default function Map({
   companies,
   selectedCompany,
@@ -118,7 +126,11 @@ export default function Map({
   const featureGroupRef = useRef<L.FeatureGroup | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
 
-  // Restore a saved area geometry onto the FeatureGroup
+  /**
+   * Restore a saved search geometry onto the map.
+   * Clears previous drawings, adds the GeoJSON polygon, and fits the view.
+   * The `ts` timestamp in `restoreGeometry` ensures re-triggers for the same geometry.
+   */
   useEffect(() => {
     if (!restoreGeometry || !featureGroupRef.current || !mapInstanceRef.current) return
     featureGroupRef.current.clearLayers()
@@ -139,8 +151,8 @@ export default function Map({
     }
   }, [])
 
+  /** Keeps only the newest drawing layer and triggers a search with its geometry. */
   const onCreated = useCallback((e: any) => {
-    // Remove all previous drawings, keep only the new one
     if (featureGroupRef.current) {
       featureGroupRef.current.eachLayer((layer: any) => {
         if (layer !== e.layer) {

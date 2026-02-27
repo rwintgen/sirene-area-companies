@@ -70,9 +70,18 @@ async function run() {
   client.release()
   console.log('✅  Database connected.')
 
+  console.log('⏳  Dropping indexes for faster bulk insert...')
+  try {
+    await pool.query('DROP INDEX IF EXISTS idx_establishments_geom')
+    await pool.query('DROP INDEX IF EXISTS idx_establishments_fields')
+    console.log('✅  Indexes dropped.')
+  } catch (err) {
+    console.error('⚠️  Warning: Could not drop indexes:', err.message)
+  }
+
   await new Promise((resolve, reject) => {
     const stream = fs.createReadStream(CSV_PATH, { encoding: 'utf-8' })
-      .pipe(parse({ columns: true, skip_empty_lines: true, relax_quotes: true }))
+      .pipe(parse({ columns: true, skip_empty_lines: true, relax_quotes: true, delimiter: ';' }))
 
     stream.on('data', async (row) => {
       const rawGeo = row[GEO_COL]
@@ -122,6 +131,16 @@ async function run() {
   })
 
   console.log(`\n\n✅  Done. Inserted/updated ${total.toLocaleString()} rows. Skipped ${skipped.toLocaleString()} (missing coordinates).`)
+  
+  console.log('⏳  Recreating indexes...')
+  try {
+    await pool.query(`CREATE INDEX idx_establishments_geom ON establishments USING GIST (geom)`)
+    await pool.query(`CREATE INDEX idx_establishments_fields ON establishments USING GIN (fields jsonb_path_ops)`)
+    console.log('✅  Indexes created.')
+  } catch (err) {
+    console.error('⚠️  Warning: Could not create indexes:', err.message)
+  }
+
   await pool.end()
 }
 

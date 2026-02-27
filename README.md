@@ -150,4 +150,5 @@ This app requires server-side rendering (Next.js API routes handle the CSV searc
 - [ ] Migrate search backend to PostGIS for full-dataset performance
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout
+- [ ] Add AI overview
 - [ ] Deploy the app to a hosting service like Vercel or Firebase Hosting.

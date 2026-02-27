@@ -26,7 +26,7 @@ export default function Home() {
   const [restoreGeometry, setRestoreGeometry] = useState<{ geometry: any; ts: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isDark, setIsDark] = useState(true)
-  const [mapStyle, setMapStyle] = useState<'default' | 'themed' | 'satellite'>('default')
+  const [mapStyle, setMapStyle] = useState<'default' | 'themed' | 'satellite'>('themed')
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [user] = useAuthState(auth)
   const [settingsOpen, setSettingsOpen] = useState(false)

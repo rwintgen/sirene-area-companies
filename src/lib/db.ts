@@ -1,5 +1,5 @@
 import { Pool } from 'pg'
-import { Connector } from '@google-cloud/cloud-sql-connector'
+import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector'
 
 let pool: Pool | null = null
 
@@ -13,12 +13,11 @@ export async function getPool(): Promise<Pool> {
     const connector = new Connector()
     const clientOpts = await connector.getOptions({
       instanceConnectionName,
-      ipType: 'PUBLIC',
+      ipType: IpAddressTypes.PUBLIC,
     })
     pool = new Pool({
       ...clientOpts,
-      user: process.env.DB_USER ?? 'postgres',
-      database: process.env.DB_NAME ?? 'sirene_db',
+      user: process.env.DB_USER ?? 'postgres',      password: process.env.DB_PASSWORD,      database: process.env.DB_NAME ?? 'sirene_db',
       max: 5,
     })
   } else if (process.env.DATABASE_URL) {

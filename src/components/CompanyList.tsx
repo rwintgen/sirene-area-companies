@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { PRESET_FILTERS, PRESET_GROUPS, applyPresets } from '@/lib/presets'
 
 interface Filter {
@@ -48,7 +48,7 @@ function ColSelect({ value, onChange, columns, className }: {
  * Supports multi-criteria sorting (up to 5 levels), filter conditions,
  * and preset quick-filters. Renders a 20-items-per-page paginated view.
  */
-export default function CompanyList({
+function CompanyList({
   companies,
   selectedCompany,
   onCompanySelect,
@@ -648,3 +648,5 @@ export default function CompanyList({
     </div>
   )
 }
+
+export default memo(CompanyList)

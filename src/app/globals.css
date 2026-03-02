@@ -91,10 +91,12 @@ html, body {
 }
 
 /* === Marker cluster styling === */
-/* cluster-wrap resets Leaflet's leaflet-div-icon white background and border */
+/* cluster-wrap resets Leaflet's leaflet-div-icon white background and border
+   filter:none prevents the dark-mode marker invert(1) from double-inverting clusters */
 .cluster-wrap {
   background: transparent !important;
   border: none !important;
+  filter: none !important;
 }
 /* Base (light + themed): white circle, black text/border — matches black pin */
 .ci {
@@ -115,12 +117,8 @@ html, body {
 .ci-sm { font-size: 11px; }
 .ci-md { font-size: 12px; }
 .ci-lg { font-size: 13px; }
-/* Dark mode: black circle, white text/border — matches inverted (white) pin */
+/* Dark mode: dark circle, white text/border */
 [data-theme=dark] .ci { background: #111827; color: #ffffff; border-color: #ffffff; }
-/* Default map style: always black pin → white cluster regardless of theme */
-[data-mapstyle=default] .ci { background: #ffffff; color: #111827; border-color: #111827; }
-/* Satellite: always white pin → black cluster regardless of theme */
-[data-mapstyle=satellite] .ci { background: #111827; color: #ffffff; border-color: #ffffff; }
 
 /* === Leaflet controls: match reset-position button style === */
 

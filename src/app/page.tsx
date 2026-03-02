@@ -235,12 +235,12 @@ export default function Home() {
     })
   }, [user, searchArea, filters, sortCriteria, activePresets])
 
+  const handleSignInPrompt = useCallback(() => { setAuthOpen(true) }, [])
+
   /**
    * Derived company list with active filters applied.
    * Used to keep map markers in sync with the filtered list view.
    */
-  const MAP_MARKER_LIMIT = 8_000
-
   const mapCompanies = useMemo(() => {
     let result: any[] = [...companies]
     if (filters.length > 0) {
@@ -262,13 +262,6 @@ export default function Home() {
     result = applyPresets(result, activePresets)
     return result
   }, [companies, filters, activePresets])
-
-  /** Subsample for map rendering to keep Leaflet performant. List shows all. */
-  const mapMarkers = useMemo(() => {
-    if (mapCompanies.length <= MAP_MARKER_LIMIT) return mapCompanies
-    const step = Math.ceil(mapCompanies.length / MAP_MARKER_LIMIT)
-    return mapCompanies.filter((_, i) => i % step === 0)
-  }, [mapCompanies])
 
   const handleSignOut = async () => {
     await signOut(auth)
@@ -342,7 +335,7 @@ export default function Home() {
       {/* Map */}
       <div className="flex-1 h-full relative">
         <Map
-          companies={mapMarkers}
+          companies={mapCompanies}
           selectedCompany={selectedCompany}
           onSearch={handleSearch}
           onCompanySelect={setSelectedCompany}
@@ -597,7 +590,7 @@ export default function Home() {
             canSave={!!user && !!searchArea}
             hasSearchArea={!!searchArea}
             onSaveSearch={handleSaveSearch}
-            onSignInPrompt={() => { setAuthOpen(true) }}
+            onSignInPrompt={handleSignInPrompt}
           />
         </div>
 

@@ -2,10 +2,10 @@
 
 import { MapContainer, TileLayer, FeatureGroup, useMap, Marker, Popup } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
-import MarkerClusterGroup from 'react-leaflet-cluster'
 import { useRef, useEffect, useCallback } from 'react'
 
 import L from 'leaflet'
+import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 
 const FRANCE_CENTER: [number, number] = [46.603354, 1.888334]
@@ -45,6 +45,89 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
     iconSize: L.point(size, size),
     iconAnchor: L.point(size / 2, size / 2),
   })
+}
+
+/**
+ * Uses the native leaflet.markercluster API instead of React Marker components.
+ * This eliminates React overhead for large datasets (50k+) and ensures cluster
+ * counts reflect the real total.
+ */
+function ClusteredMarkers({
+  companies,
+  onCompanySelect,
+  onExpand,
+  popupColumns,
+}: {
+  companies: any[]
+  onCompanySelect: (company: any) => void
+  onExpand: (company: any) => void
+  popupColumns: string[]
+}) {
+  const map = useMap()
+  const groupRef = useRef<L.MarkerClusterGroup | null>(null)
+  const selectRef = useRef(onCompanySelect)
+  const expandRef = useRef(onExpand)
+  selectRef.current = onCompanySelect
+  expandRef.current = onExpand
+
+  useEffect(() => {
+    const g = L.markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: createClusterIcon,
+    })
+    groupRef.current = g
+    map.addLayer(g)
+
+    const onPopupOpen = (e: any) => {
+      const btn = e.popup?.getElement()?.querySelector('.marker-expand-btn') as HTMLElement | null
+      if (!btn) return
+      const marker = e.popup._source
+      if (marker?._company) {
+        btn.onclick = () => expandRef.current(marker._company)
+      }
+    }
+    map.on('popupopen', onPopupOpen)
+
+    return () => {
+      map.off('popupopen', onPopupOpen)
+      map.removeLayer(g)
+    }
+  }, [map])
+
+  useEffect(() => {
+    const g = groupRef.current
+    if (!g) return
+    g.clearLayers()
+
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+    const markers = companies.map((c: any) => {
+      const m = L.marker([c.lat, c.lon], { icon: defaultIcon })
+      ;(m as any)._company = c
+      m.on('click', () => selectRef.current(c))
+
+      let html = '<div class="min-w-[160px]">'
+      if (popupColumns.length === 0) {
+        html += '<p class="text-xs italic text-gray-400">No columns selected</p>'
+      } else {
+        popupColumns.forEach((col, i) => {
+          const val = esc(String(c.fields?.[col] ?? ''))
+          if (i === 0) html += `<p class="font-semibold text-sm leading-tight">${val || '\u2014'}</p>`
+          else html += `<p class="text-xs text-gray-400 mt-0.5">${esc(col)}: ${val}</p>`
+        })
+      }
+      html += '<button class="marker-expand-btn mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors">View details <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>'
+      html += '</div>'
+      m.bindPopup(html)
+      return m
+    })
+    g.addLayers(markers)
+  }, [companies, popupColumns])
+
+  return null
 }
 
 /** Renders and auto-zooms a larger marker with a popup for the selected company. */
@@ -172,25 +255,27 @@ export default function Map({
         el.removeAttribute('title')
       })
     }
-    const timer = setTimeout(migrate, 200)
+    const timers = [200, 600, 1200].map(ms => setTimeout(migrate, ms))
     const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === 'childList') {
-          m.addedNodes.forEach((n) => {
-            if (n instanceof HTMLElement) migrate(n.parentElement ?? document)
-          })
-        }
-        if (m.type === 'attributes' && m.attributeName === 'title' && m.target instanceof HTMLElement) {
-          const el = m.target
-          if (el.closest('.leaflet-bar, .leaflet-draw-toolbar') && el.getAttribute('title')) {
-            el.setAttribute('data-tooltip', el.getAttribute('title')!)
-            el.removeAttribute('title')
+      requestAnimationFrame(() => {
+        for (const m of mutations) {
+          if (m.type === 'childList') {
+            m.addedNodes.forEach((n) => {
+              if (n instanceof HTMLElement) migrate(n.parentElement ?? document)
+            })
+          }
+          if (m.type === 'attributes' && m.attributeName === 'title' && m.target instanceof HTMLElement) {
+            const el = m.target
+            if (el.closest('.leaflet-bar, .leaflet-draw-toolbar') && el.getAttribute('title')) {
+              el.setAttribute('data-tooltip', el.getAttribute('title')!)
+              el.removeAttribute('title')
+            }
           }
         }
-      }
+      })
     })
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['title'] })
-    return () => { clearTimeout(timer); observer.disconnect() }
+    return () => { timers.forEach(clearTimeout); observer.disconnect() }
   }, [])
 
   /**
@@ -310,50 +395,7 @@ export default function Map({
           }}
         />
       </FeatureGroup>
-      <MarkerClusterGroup
-        chunkedLoading
-        maxClusterRadius={60}
-        spiderfyOnMaxZoom
-        showCoverageOnHover={false}
-        iconCreateFunction={createClusterIcon}
-      >
-        {companies.map((company, idx) => {
-          const companyId = company.fields?.SIRET || `row-${idx}`
-          const isSelected = selectedCompany && (selectedCompany.fields?.SIRET === company.fields?.SIRET)
-          if (isSelected) return null
-          return (
-            <Marker
-              key={companyId}
-              position={[company.lat, company.lon]}
-              icon={defaultIcon}
-              eventHandlers={{
-                click: () => onCompanySelect(company),
-              }}
-            >
-              <Popup>
-                <div className="min-w-[160px]">
-                  {popupColumns.length === 0 ? (
-                    <p className="text-xs italic text-gray-400">No columns selected</p>
-                  ) : (
-                    popupColumns.map((col, i) => {
-                      const val = company.fields?.[col] ?? ''
-                      if (i === 0) return <p key={col} className="font-semibold text-sm leading-tight">{val || '—'}</p>
-                      return <p key={col} className="text-xs text-gray-400 mt-0.5">{col}: {val}</p>
-                    })
-                  )}
-                  <button
-                    onClick={() => onExpand(company)}
-                    className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors"
-                  >
-                    View details
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          )
-        })}
-      </MarkerClusterGroup>
+      <ClusteredMarkers companies={companies} onCompanySelect={onCompanySelect} onExpand={onExpand} popupColumns={popupColumns} />
       <SelectedMarkerPopup selectedCompany={selectedCompany} popupColumns={popupColumns} onExpand={onExpand} />
       <LocationUpdater userLocation={userLocation} />
       <MapRefCapture mapRef={mapInstanceRef} />

@@ -12,7 +12,7 @@ import { applyPresets } from '@/lib/presets'
 import { auth, db } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore'
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 
 const HIDDEN_COLS = ['Géolocalisation de l\'établissement']
@@ -36,7 +36,10 @@ export default function Home() {
   const [expandedCompany, setExpandedCompany] = useState<any>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
   const isSigningIn = useRef(false)
   const profileLoaded = useRef(false)
   const searchAbort = useRef<AbortController | null>(null)
@@ -51,8 +54,7 @@ export default function Home() {
 
   const [settingsTab, setSettingsTab] = useState<'general' | 'list' | 'popup'>('general')
 
-  const [sortBy, setSortBy] = useState<string | null>(null)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [sortCriteria, setSortCriteria] = useState<{ column: string; dir: 'asc' | 'desc' }[]>([])
   const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]>([])
   const [activePresets, setActivePresets] = useState<string[]>([])
 
@@ -139,6 +141,9 @@ export default function Home() {
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
         setSettingsOpen(false)
       }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -203,10 +208,22 @@ export default function Home() {
     }
   }
 
-  const handleSortChange = useCallback((col: string | null, dir: 'asc' | 'desc') => {
-    setSortBy(col)
-    setSortDir(dir)
+  const handleSortChange = useCallback((criteria: { column: string; dir: 'asc' | 'desc' }[]) => {
+    setSortCriteria(criteria)
   }, [])
+
+  const handleSaveSearch = useCallback(async (name: string) => {
+    if (!user || !searchArea) return
+    await addDoc(collection(db, 'savedAreas'), {
+      name,
+      userId: user.uid,
+      geometryJson: JSON.stringify(searchArea),
+      filtersJson: JSON.stringify(filters),
+      sortCriteriaJson: JSON.stringify(sortCriteria),
+      presetsJson: JSON.stringify(activePresets),
+      timestamp: new Date(),
+    })
+  }, [user, searchArea, filters, sortCriteria, activePresets])
 
   /**
    * Derived company list with active filters applied.
@@ -359,14 +376,28 @@ export default function Home() {
         )}
         {/* Header */}
         <div className={`px-5 pt-5 pb-4 border-b ${d.headerBorder}`}>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <img src="/logo-full.png" alt="Public Data Maps" className={`h-12 w-auto ${isDark ? 'invert' : ''}`} />
 
             <div className="flex items-center gap-1.5">
+              {/* Search toggle */}
+              <button
+                onClick={() => { setSearchExpanded(!searchExpanded); setProfileOpen(false); setSettingsOpen(false) }}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
+                  searchExpanded
+                    ? isDark ? 'bg-white/15 border-white/25 text-white' : 'bg-violet-50 border-violet-300 text-violet-600'
+                    : d.iconBtn
+                }`}
+                data-tooltip="Search a place" data-tooltip-pos="bottom"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
               {/* Settings */}
               <div className="relative" ref={settingsRef}>
                 <button
-                  onClick={() => { setSettingsOpen(!settingsOpen); setSettingsTab('general') }}
+                  onClick={() => { setSettingsOpen(!settingsOpen); setSettingsTab('general'); setProfileOpen(false); setSearchExpanded(false) }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.iconBtn}`}
                   data-tooltip="Settings" data-tooltip-pos="bottom"
                 >
@@ -468,7 +499,7 @@ export default function Home() {
               <button
                 onClick={() => setIsDark(!isDark)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.themeBtnBg}`}
-                data-tooltip={isDark ? 'Switch to light mode' : 'Switch to dark mode'} data-tooltip-pos="left"
+                data-tooltip={isDark ? 'Light mode' : 'Dark mode'} data-tooltip-pos="bottom"
               >
                 {isDark ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,64 +511,82 @@ export default function Home() {
                   </svg>
                 )}
               </button>
-            </div>
-          </div>
 
-          {/* Search bar */}
-          <div className="mb-4">
-            <SearchBar
-              isDark={isDark}
-              onSelect={(lat, lon) => setUserLocation([lat, lon])}
-            />
-          </div>
-
-          {/* Auth */}
-          {user ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {user.photoURL && (
-                  <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+              {/* Profile */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => { setProfileOpen(!profileOpen); setSettingsOpen(false); setSearchExpanded(false) }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all overflow-hidden ${d.iconBtn}`}
+                  data-tooltip={user ? 'Account' : 'Sign in'} data-tooltip-pos="left"
+                >
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-full h-full rounded-lg object-cover" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
+                </button>
+                {profileOpen && (
+                  <div className={`absolute right-0 top-10 z-[2000] w-72 rounded-xl border shadow-2xl backdrop-blur-sm overflow-hidden ${d.dropdownBg}`}>
+                    {user ? (
+                      <>
+                        <div className={`px-4 py-3 border-b ${d.tabBorder}`}>
+                          <div className="flex items-center gap-2.5">
+                            {user.photoURL && <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />}
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-sm font-medium truncate ${d.title}`}>{user.displayName ?? 'User'}</p>
+                              {user.email && <p className={`text-[11px] truncate ${d.dropdownLabel}`}>{user.email}</p>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-3 py-2.5 max-h-[50vh] overflow-y-auto">
+                          <SavedAreas
+                            onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id) => {
+                              handleSearch(geo)
+                              setFilters(restoredFilters)
+                              setSortCriteria(restoredSortCriteria)
+                              setActivePresets(restoredPresets)
+                              setActiveSearchId(id)
+                              setRestoreGeometry({ geometry: geo, ts: Date.now() })
+                              setProfileOpen(false)
+                            }}
+                            onDeleteCurrentSearch={() => handleSearch(null)}
+                            activeSearchId={activeSearchId}
+                            isDark={isDark}
+                          />
+                        </div>
+                        <div className={`px-4 py-2.5 border-t ${d.tabBorder}`}>
+                          <button
+                            onClick={handleSignOut}
+                            className={`w-full text-left text-xs font-medium transition-colors ${d.signOutBtn}`}
+                          >
+                            Sign Out
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-4">
+                        <button
+                          onClick={() => { setAuthOpen(true); setProfileOpen(false) }}
+                          className={`w-full flex items-center justify-center gap-2 text-sm font-medium border rounded-lg px-3 py-2 transition-all ${d.signInBtn}`}
+                        >
+                          Sign in / Create account
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
-                <span className={`text-xs ${d.userName}`}>{user.displayName ?? user.email}</span>
               </div>
-              <button onClick={handleSignOut} className={`text-xs transition-colors ${d.signOutBtn}`} data-tooltip="Sign out of your account" data-tooltip-pos="bottom">
-                Sign Out
-              </button>
             </div>
-          ) : (
-            <button
-              onClick={() => setAuthOpen(true)}
-              className={`w-full flex items-center justify-center gap-2 text-sm font-medium border rounded-lg px-3 py-2 transition-all ${d.signInBtn}`}
-            >
-              Sign in / Create account
-            </button>
+          </div>
+
+          {searchExpanded && (
+            <div className="mt-3">
+              <SearchBar isDark={isDark} onSelect={(lat, lon) => { setUserLocation([lat, lon]); setSearchExpanded(false) }} />
+            </div>
           )}
         </div>
-
-        {/* Saved Searches */}
-        {user && (
-          <div className={`px-5 py-3 border-b ${d.savedAreasBorder}`}>
-            <SavedAreas
-              onRestoreSearch={(geo, restoredFilters, restoredSortBy, restoredSortDir, restoredPresets, id) => {
-                handleSearch(geo)
-                setFilters(restoredFilters)
-                setSortBy(restoredSortBy)
-                setSortDir(restoredSortDir)
-                setActivePresets(restoredPresets)
-                setActiveSearchId(id)
-                setRestoreGeometry({ geometry: geo, ts: Date.now() })
-              }}
-              onDeleteCurrentSearch={() => handleSearch(null)}
-              activeSearchId={activeSearchId}
-              currentSearchArea={searchArea}
-              currentFilters={filters}
-              currentSortBy={sortBy}
-              currentSortDir={sortDir}
-              currentActivePresets={activePresets}
-              isDark={isDark}
-            />
-          </div>
-        )}
 
         {/* Company List */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
@@ -549,13 +598,14 @@ export default function Home() {
             isDark={isDark}
             listColumns={listColumns}
             columns={displayColumns}
-            sortBy={sortBy}
-            sortDir={sortDir}
+            sortCriteria={sortCriteria}
             onSortChange={handleSortChange}
             filters={filters}
             onFiltersChange={setFilters}
             activePresets={activePresets}
             onPresetsChange={setActivePresets}
+            canSave={!!user && !!searchArea}
+            onSaveSearch={handleSaveSearch}
           />
         </div>
 

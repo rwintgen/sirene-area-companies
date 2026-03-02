@@ -138,6 +138,23 @@ export default function Map({
   const mapInstanceRef = useRef<L.Map | null>(null)
 
   /**
+   * Strips `title` from Leaflet control buttons and moves the value to `data-tooltip`
+   * so the browser's native tooltip is suppressed while our custom CSS tooltip still works.
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      document.querySelectorAll<HTMLElement>('.leaflet-bar a, .leaflet-draw-toolbar a').forEach((el) => {
+        const title = el.getAttribute('title')
+        if (title) {
+          el.setAttribute('data-tooltip', title)
+          el.removeAttribute('title')
+        }
+      })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  /**
    * Restore a saved search geometry onto the map.
    * Clears previous drawings, adds the GeoJSON polygon, and fits the view.
    * The `ts` timestamp in `restoreGeometry` ensures re-triggers for the same geometry.

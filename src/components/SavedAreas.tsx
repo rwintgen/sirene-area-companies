@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, onSnapshot, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 
 interface Filter {
@@ -19,21 +19,11 @@ interface Filter {
  */
 export default function SavedAreas({
   onRestoreSearch,
-  currentSearchArea,
-  currentFilters,
-  currentSortBy,
-  currentSortDir,
-  currentActivePresets,
   onDeleteCurrentSearch,
   activeSearchId,
   isDark,
 }: {
-  onRestoreSearch: (geometry: any, filters: Filter[], sortBy: string | null, sortDir: 'asc' | 'desc', activePresets: string[], id: string) => void
-  currentSearchArea: any
-  currentFilters: Filter[]
-  currentSortBy: string | null
-  currentSortDir: 'asc' | 'desc'
-  currentActivePresets: string[]
+  onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string) => void
   onDeleteCurrentSearch: () => void
   activeSearchId: string | null
   isDark: boolean
@@ -41,11 +31,8 @@ export default function SavedAreas({
   const [savedAreas, setSavedAreas] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveName, setSaveName] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const saveInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const user = auth.currentUser
 
@@ -71,30 +58,6 @@ export default function SavedAreas({
     setPendingDeleteId(null)
   }
 
-  const handleSave = async () => {
-    if (!currentSearchArea) return
-    if (!isSaving) {
-      setIsSaving(true)
-      setSaveName('')
-      setTimeout(() => saveInputRef.current?.focus(), 50)
-      return
-    }
-    if (user && saveName.trim()) {
-      await addDoc(collection(db, 'savedAreas'), {
-        name: saveName.trim(),
-        userId: user.uid,
-        geometryJson: JSON.stringify(currentSearchArea),
-        filtersJson: JSON.stringify(currentFilters),
-        sortBy: currentSortBy ?? null,
-        sortDir: currentSortDir,
-        presetsJson: JSON.stringify(currentActivePresets),
-        timestamp: new Date(),
-      })
-      setIsSaving(false)
-      setSaveName('')
-    }
-  }
-
   const handleRename = async (areaId: string) => {
     if (renameValue.trim()) {
       await updateDoc(doc(db, 'savedAreas', areaId), { name: renameValue.trim() })
@@ -108,14 +71,12 @@ export default function SavedAreas({
         label: 'text-gray-400 hover:text-gray-200',
         emptyText: 'text-gray-500',
         item: 'text-gray-300 hover:text-white hover:bg-white/5',
-        saveBtn: 'text-gray-300 hover:text-white border-white/15 hover:border-white/30',
         deleteBtn: 'text-gray-600 hover:text-red-400',
       }
     : {
         label: 'text-gray-500 hover:text-gray-800',
         emptyText: 'text-gray-400',
         item: 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
-        saveBtn: 'text-violet-600 hover:text-violet-700 border-violet-300 hover:border-violet-400',
         deleteBtn: 'text-gray-400 hover:text-red-500',
       }
 
@@ -207,10 +168,14 @@ export default function SavedAreas({
                     onClick={() => {
                       const geo = area.geometryJson ? JSON.parse(area.geometryJson) : area.geometry
                       const filters: Filter[] = area.filtersJson ? JSON.parse(area.filtersJson) : []
-                      const sortBy: string | null = area.sortBy ?? null
-                      const sortDir: 'asc' | 'desc' = area.sortDir ?? 'asc'
+                      let sortCriteria: { column: string; dir: 'asc' | 'desc' }[] = []
+                      if (area.sortCriteriaJson) {
+                        sortCriteria = JSON.parse(area.sortCriteriaJson)
+                      } else if (area.sortBy) {
+                        sortCriteria = [{ column: area.sortBy, dir: area.sortDir ?? 'asc' }]
+                      }
                       const activePresets: string[] = area.presetsJson ? JSON.parse(area.presetsJson) : []
-                      onRestoreSearch(geo, filters, sortBy, sortDir, activePresets, area.id)
+                      onRestoreSearch(geo, filters, sortCriteria, activePresets, area.id)
                     }}
                     className="flex-1 text-left text-sm px-2.5 py-1.5 min-w-0 truncate"
                   >
@@ -238,38 +203,6 @@ export default function SavedAreas({
               )}
             </div>
           ))}
-          {isSaving ? (
-            <div className={`mt-2 flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 ${isDark ? 'border-white/15 bg-white/5' : 'border-violet-300 bg-gray-50'}`}>
-              <input
-                ref={saveInputRef}
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setIsSaving(false); setSaveName('') } }}
-                placeholder="Search name…"
-                className={`flex-1 min-w-0 text-xs bg-transparent outline-none ${isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
-              />
-              <button
-                onClick={handleSave}
-                disabled={!saveName.trim()}
-                className={`text-[11px] font-semibold transition-colors px-1.5 py-0.5 rounded ${saveName.trim() ? (isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400') : isDark ? 'text-gray-600' : 'text-gray-400'}`}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => { setIsSaving(false); setSaveName('') }}
-                className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleSave}
-              className={`w-full mt-2 text-xs font-medium border rounded-lg px-3 py-2 transition-colors ${t.saveBtn} ${!currentSearchArea ? 'opacity-40 cursor-not-allowed' : ''}`}
-            >
-              + Save Current Search
-            </button>
-          )}
         </div>
       )}
     </div>

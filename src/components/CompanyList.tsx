@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { PRESET_FILTERS, PRESET_GROUPS, applyPresets } from '@/lib/presets'
 
 interface Filter {
@@ -8,6 +8,11 @@ interface Filter {
   operator: 'contains' | 'equals' | 'empty'
   negate: boolean
   value: string
+}
+
+interface SortCriterion {
+  column: string
+  dir: 'asc' | 'desc'
 }
 
 /**
@@ -40,8 +45,8 @@ function ColSelect({ value, onChange, columns, className }: {
 
 /**
  * Paginated, sortable, filterable list of establishments.
- * Applies filters and sort on the full company array via a `useMemo`,
- * then renders a 20-items-per-page paginated view.
+ * Supports multi-criteria sorting (up to 5 levels), filter conditions,
+ * and preset quick-filters. Renders a 20-items-per-page paginated view.
  */
 export default function CompanyList({
   companies,
@@ -51,13 +56,14 @@ export default function CompanyList({
   isDark,
   listColumns,
   columns,
-  sortBy,
-  sortDir,
+  sortCriteria,
   onSortChange,
   filters,
   onFiltersChange,
   activePresets,
   onPresetsChange,
+  canSave,
+  onSaveSearch,
 }: {
   companies: any[]
   selectedCompany: any
@@ -66,28 +72,29 @@ export default function CompanyList({
   isDark: boolean
   listColumns: string[]
   columns: string[]
-  sortBy: string | null
-  sortDir: 'asc' | 'desc'
-  onSortChange: (col: string | null, dir: 'asc' | 'desc') => void
+  sortCriteria: SortCriterion[]
+  onSortChange: (criteria: SortCriterion[]) => void
   filters: Filter[]
   onFiltersChange: (f: Filter[]) => void
   activePresets: string[]
   onPresetsChange: (ids: string[]) => void
+  canSave: boolean
+  onSaveSearch: (name: string) => Promise<void>
 }) {
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
+  const [showSort, setShowSort] = useState(false)
   const [hoveredPreset, setHoveredPreset] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const saveInputRef = useRef<HTMLInputElement>(null)
   const itemsPerPage = 20
 
   useEffect(() => {
     setPage(1)
-  }, [companies, sortBy, sortDir, filters, activePresets])
+  }, [companies, sortCriteria, filters, activePresets])
 
-  /**
-   * Derives the displayable company list by applying active filters,
-   * then sorting (numeric-aware, French locale fallback).
-   */
   const processed = useMemo(() => {
     let result = [...companies]
 
@@ -108,23 +115,27 @@ export default function CompanyList({
 
     result = applyPresets(result, activePresets)
 
-    if (sortBy) {
+    if (sortCriteria.length > 0) {
       result.sort((a, b) => {
-        const va = (a.fields?.[sortBy] ?? '').toString()
-        const vb = (b.fields?.[sortBy] ?? '').toString()
-        const numA = parseFloat(va)
-        const numB = parseFloat(vb)
-        // Numeric comparison if both are numbers
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return sortDir === 'asc' ? numA - numB : numB - numA
+        for (const sc of sortCriteria) {
+          const va = (a.fields?.[sc.column] ?? '').toString()
+          const vb = (b.fields?.[sc.column] ?? '').toString()
+          const numA = parseFloat(va)
+          const numB = parseFloat(vb)
+          let cmp: number
+          if (!isNaN(numA) && !isNaN(numB)) {
+            cmp = numA - numB
+          } else {
+            cmp = va.localeCompare(vb, 'fr', { sensitivity: 'base' })
+          }
+          if (cmp !== 0) return sc.dir === 'asc' ? cmp : -cmp
         }
-        const cmp = va.localeCompare(vb, 'fr', { sensitivity: 'base' })
-        return sortDir === 'asc' ? cmp : -cmp
+        return 0
       })
     }
 
     return result
-  }, [companies, filters, activePresets, sortBy, sortDir])
+  }, [companies, filters, activePresets, sortCriteria])
 
   const totalPages = Math.ceil(processed.length / itemsPerPage)
   const paginatedCompanies = processed.slice(
@@ -144,6 +155,39 @@ export default function CompanyList({
   }
   const updateFilter = (i: number, patch: Partial<Filter>) => {
     onFiltersChange(filters.map((f, idx) => idx === i ? { ...f, ...patch } : f))
+  }
+
+  const addSortCriterion = () => {
+    if (sortCriteria.length >= 5) return
+    onSortChange([...sortCriteria, { column: columns[0] || '', dir: 'asc' }])
+  }
+  const removeSortCriterion = (i: number) => {
+    onSortChange(sortCriteria.filter((_, idx) => idx !== i))
+  }
+  const updateSortCriterion = (i: number, patch: Partial<SortCriterion>) => {
+    onSortChange(sortCriteria.map((sc, idx) => idx === i ? { ...sc, ...patch } : sc))
+  }
+
+  const handleSave = async () => {
+    if (!isSaving) {
+      setIsSaving(true)
+      setSaveName('')
+      setTimeout(() => saveInputRef.current?.focus(), 50)
+      return
+    }
+    if (saveName.trim()) {
+      await onSaveSearch(saveName.trim())
+      setIsSaving(false)
+      setSaveName('')
+    }
+  }
+
+  const hasActiveItems = activePresets.length > 0 || filters.length > 0 || sortCriteria.length > 0
+
+  const clearAll = () => {
+    onPresetsChange([])
+    onFiltersChange([])
+    onSortChange([])
   }
 
   const t = isDark
@@ -170,6 +214,9 @@ export default function CompanyList({
         sortIcon: 'text-gray-500 hover:text-gray-300',
         activeSortIcon: 'text-white',
         fieldLabel: 'text-gray-600',
+        chipClear: 'text-gray-600 hover:text-gray-300',
+        saveBtn: 'text-gray-500 hover:text-gray-300 bg-white/5 hover:bg-white/10 border-white/10',
+        saveInput: 'border-white/15 bg-white/5',
       }
     : {
         emptyText: 'text-gray-500',
@@ -194,6 +241,9 @@ export default function CompanyList({
         sortIcon: 'text-gray-400 hover:text-gray-700',
         activeSortIcon: 'text-violet-600',
         fieldLabel: 'text-gray-400',
+        chipClear: 'text-gray-400 hover:text-gray-600',
+        saveBtn: 'text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200',
+        saveInput: 'border-violet-300 bg-gray-50',
       }
 
   if (companies.length === 0) {
@@ -209,7 +259,6 @@ export default function CompanyList({
 
   return (
     <div className="flex flex-col h-full min-w-0">
-      {/* Header + toolbar */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <h2 className={`text-xs font-semibold uppercase tracking-wider ${t.label}`}>Results</h2>
@@ -218,23 +267,26 @@ export default function CompanyList({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {/* Sort toggle */}
+          {canSave && (
+            <button
+              onClick={handleSave}
+              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${t.saveBtn}`}
+              data-tooltip="Save search" data-tooltip-pos="left"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          )}
           <button
-            onClick={() => {
-              if (sortBy) {
-                onSortChange(null, 'asc')
-              } else {
-                onSortChange(columns[0] || null, 'asc')
-              }
-            }}
-            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${sortBy ? t.toolbarActive : t.toolbarBtn}`}
+            onClick={() => setShowSort(!showSort)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showSort || sortCriteria.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
             data-tooltip="Sort results" data-tooltip-pos="left"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4V4" />
             </svg>
           </button>
-          {/* Preset tags toggle */}
           <button
             onClick={() => setShowPresets(!showPresets)}
             className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets || activePresets.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
@@ -244,7 +296,6 @@ export default function CompanyList({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
             </svg>
           </button>
-          {/* Filter toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showFilters || filters.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
@@ -257,7 +308,119 @@ export default function CompanyList({
         </div>
       </div>
 
-      {/* Preset tags */}
+      {isSaving && (
+        <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 mb-2 ${t.saveInput}`}>
+          <input
+            ref={saveInputRef}
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setIsSaving(false); setSaveName('') } }}
+            placeholder="Search name…"
+            className={`flex-1 min-w-0 text-xs bg-transparent outline-none ${isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'}`}
+          />
+          <button
+            onClick={handleSave}
+            disabled={!saveName.trim()}
+            className={`text-[11px] font-semibold transition-colors px-1.5 py-0.5 rounded ${saveName.trim() ? (isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400') : isDark ? 'text-gray-600' : 'text-gray-400'}`}
+          >
+            Save
+          </button>
+          <button
+            onClick={() => { setIsSaving(false); setSaveName('') }}
+            className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {hasActiveItems && (
+        <div className="flex items-center gap-1.5 mb-2 min-w-0">
+          <div className="flex-1 min-w-0 overflow-x-auto flex items-center gap-1 scrollbar-none">
+            {sortCriteria.map((sc, i) => (
+              <span key={`sort-${i}`} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+                <svg className={`w-2.5 h-2.5 ${sc.dir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
+                {i > 0 && <span className="opacity-50 mr-0.5">#{i + 1}</span>}
+                {sc.column.length > 18 ? sc.column.substring(0, 18) + '\u2026' : sc.column}
+                <button onClick={() => removeSortCriterion(i)} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </span>
+            ))}
+            {activePresets.map((id) => {
+              const p = PRESET_FILTERS.find((x) => x.id === id)
+              return p ? (
+                <span key={id} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+                  {p.label}
+                  <button onClick={() => onPresetsChange(activePresets.filter((x) => x !== id))} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </span>
+              ) : null
+            })}
+            {filters.map((f, i) => (
+              <span key={`filter-${i}`} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+                {f.column.length > 12 ? f.column.substring(0, 12) + '\u2026' : f.column} {f.negate ? 'NOT ' : ''}{f.operator}{f.operator !== 'empty' && f.value ? ` "${f.value.length > 8 ? f.value.substring(0, 8) + '\u2026' : f.value}"` : ''}
+                <button onClick={() => removeFilter(i)} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={clearAll}
+            className={`flex-shrink-0 transition-colors ${t.chipClear}`}
+            data-tooltip="Clear all"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {showSort && (
+        <div className={`rounded-lg border p-2 mb-2 space-y-1.5 ${t.filterBg}`}>
+          {sortCriteria.map((sc, i) => (
+            <div key={i} className="flex items-center gap-1.5 min-w-0">
+              <span className={`flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold w-3 text-center ${t.fieldLabel}`}>{i + 1}</span>
+              <ColSelect
+                value={sc.column}
+                onChange={(v) => updateSortCriterion(i, { column: v })}
+                columns={columns}
+                className={`flex-1 min-w-0 rounded-md border h-[26px] ${t.select}`}
+              />
+              <button
+                onClick={() => updateSortCriterion(i, { dir: sc.dir === 'asc' ? 'desc' : 'asc' })}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${t.activeSortIcon}`}
+                data-tooltip={sc.dir === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                <svg className={`w-3.5 h-3.5 transition-transform ${sc.dir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => removeSortCriterion(i)}
+                className={`transition-colors ${t.filterRemove}`}
+                data-tooltip="Remove"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          {sortCriteria.length < 5 && (
+            <button
+              onClick={addSortCriterion}
+              className={`text-[10px] font-medium ${t.sortIcon}`}
+            >
+              + Add sort {sortCriteria.length > 0 ? 'criterion' : ''}
+            </button>
+          )}
+        </div>
+      )}
+
       {showPresets && (
         <div className={`rounded-lg border p-2 mb-2 ${t.filterBg}`}>
           {PRESET_GROUPS.map((group) => {
@@ -306,7 +469,6 @@ export default function CompanyList({
         </div>
       )}
 
-      {/* Filters */}
       {showFilters && (
         <div className={`rounded-lg border p-2 mb-2 space-y-1.5 ${t.filterBg}`}>
           {filters.map((f, i) => (
@@ -362,39 +524,6 @@ export default function CompanyList({
         </div>
       )}
 
-      {/* Sort bar */}
-      {sortBy !== null && (
-        <div className={`rounded-lg border p-2 mb-2 ${t.filterBg}`}>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className={`flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold ${t.fieldLabel}`}>Sort</span>
-            <ColSelect
-              value={sortBy}
-              onChange={(v) => onSortChange(v, sortDir)}
-              columns={columns}
-              className={`flex-1 min-w-0 rounded-md border h-[26px] ${t.select}`}
-            />
-            <button
-              onClick={() => onSortChange(sortBy, sortDir === 'asc' ? 'desc' : 'asc')}
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${t.activeSortIcon}`}
-              data-tooltip={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
-            >
-              <svg className={`w-3.5 h-3.5 transition-transform ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            </button>
-            <button
-              onClick={() => onSortChange(null, 'asc')}
-              className={`transition-colors ${t.filterRemove}`}
-              data-tooltip="Clear sort"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
       <ul className="flex-1 space-y-1 overflow-y-auto">
         {paginatedCompanies.map((company, idx) => {
           const companyId = company.fields?.SIRET || `row-${idx}`
@@ -419,13 +548,13 @@ export default function CompanyList({
                       if (ci === 0) {
                         return (
                           <p key={col} className={`text-sm font-medium leading-tight truncate ${isSelected ? (isDark ? 'text-white' : 'text-violet-600') : t.itemText}`}>
-                            {val || '—'}
+                            {val || '\u2014'}
                           </p>
                         )
                       }
                       return (
                         <span key={col} className={`text-xs ${t.itemSub}`}>
-                          {ci === 1 ? '' : ' · '}{val}
+                          {ci === 1 ? '' : ' \u00b7 '}{val}
                         </span>
                       )
                     })
@@ -454,7 +583,7 @@ export default function CompanyList({
             className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
             data-tooltip="Previous page"
           >
-            ← Prev
+            &larr; Prev
           </button>
           <span className={`text-xs ${t.paginationNum}`}>
             {page} / {totalPages}
@@ -465,7 +594,7 @@ export default function CompanyList({
             className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
             data-tooltip="Next page"
           >
-            Next →
+            Next &rarr;
           </button>
         </div>
       )}

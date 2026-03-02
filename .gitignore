@@ -2,7 +2,7 @@
 # src/lib/firebase.ts  # config values are safe to expose; security is via Firestore rules
 
 # Firebase App Hosting config
-apphosting.yaml
+# apphosting.yaml  # re-enabled: must be in repo for Firebase App Hosting to apply env vars
 
 # Firebase project alias
 .firebaserc

@@ -63,7 +63,9 @@ export default function CompanyList({
   activePresets,
   onPresetsChange,
   canSave,
+  hasSearchArea,
   onSaveSearch,
+  onSignInPrompt,
 }: {
   companies: any[]
   selectedCompany: any
@@ -79,7 +81,9 @@ export default function CompanyList({
   activePresets: string[]
   onPresetsChange: (ids: string[]) => void
   canSave: boolean
+  hasSearchArea: boolean
   onSaveSearch: (name: string) => Promise<void>
+  onSignInPrompt: () => void
 }) {
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
@@ -89,6 +93,7 @@ export default function CompanyList({
   const [isSaving, setIsSaving] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [chipsExpanded, setChipsExpanded] = useState(false)
+  const [saveNotice, setSaveNotice] = useState(false)
   const saveInputRef = useRef<HTMLInputElement>(null)
   const itemsPerPage = 20
 
@@ -266,11 +271,18 @@ export default function CompanyList({
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${t.badge}`}>
             {processed.length}{processed.length !== companies.length ? `/${companies.length}` : ''}
           </span>
-          {canSave && (
+          {hasSearchArea && (
             <button
-              onClick={handleSave}
+              onClick={() => {
+                if (!canSave) {
+                  setSaveNotice(true)
+                  setTimeout(() => setSaveNotice(false), 3000)
+                  return
+                }
+                handleSave()
+              }}
               className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all ${t.saveBtn}`}
-              data-tooltip="Save search"
+              data-tooltip="Save search" data-tooltip-pos="left"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -279,35 +291,58 @@ export default function CompanyList({
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowSort(!showSort)}
-            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showSort || sortCriteria.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
-            data-tooltip="Sort results" data-tooltip-pos="left"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4V4" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setShowPresets(!showPresets)}
-            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets || activePresets.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
-            data-tooltip="Quick filters" data-tooltip-pos="left"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showFilters || filters.length > 0 ? t.toolbarActive : t.toolbarBtn}`}
-            data-tooltip="Filter results" data-tooltip-pos="left"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowSort(!showSort)}
+              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showSort ? t.toolbarActive : t.toolbarBtn}`}
+              data-tooltip="Sort results" data-tooltip-pos="left"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4V4" />
+              </svg>
+            </button>
+            {!showSort && sortCriteria.length > 0 && (
+              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{sortCriteria.length}</span>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowPresets(!showPresets)}
+              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets ? t.toolbarActive : t.toolbarBtn}`}
+              data-tooltip="Quick filters" data-tooltip-pos="left"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+            </button>
+            {!showPresets && activePresets.length > 0 && (
+              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{activePresets.length}</span>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showFilters ? t.toolbarActive : t.toolbarBtn}`}
+              data-tooltip="Filter results" data-tooltip-pos="left"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </button>
+            {!showFilters && filters.length > 0 && (
+              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{filters.length}</span>
+            )}
+          </div>
         </div>
       </div>
+
+      {saveNotice && (
+        <div className={`flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium animate-prefs-saved ${isDark ? 'bg-white/5 text-gray-300' : 'bg-violet-50 text-violet-700'}`}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span>Sign in to save searches</span>
+          <button onClick={onSignInPrompt} className={`ml-auto text-[11px] font-semibold underline transition-colors ${isDark ? 'text-gray-200 hover:text-white' : 'text-violet-600 hover:text-violet-800'}`}>Sign in</button>
+        </div>
+      )}
 
       {isSaving && (
         <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 mb-2 ${t.saveInput}`}>
@@ -425,7 +460,7 @@ export default function CompanyList({
           {sortCriteria.length < 5 && (
             <button
               onClick={addSortCriterion}
-              className={`text-[10px] leading-none font-medium py-1 ${t.sortIcon}`}
+              className={`flex items-center text-[10px] font-medium h-6 ${t.sortIcon}`}
             >
               + Add sort {sortCriteria.length > 0 ? 'criterion' : ''}
             </button>
@@ -529,7 +564,7 @@ export default function CompanyList({
           ))}
           <button
             onClick={addFilter}
-            className={`text-[10px] leading-none font-medium py-1 ${t.sortIcon}`}
+            className={`flex items-center text-[10px] font-medium h-6 ${t.sortIcon}`}
           >
             + Add filter
           </button>

@@ -400,7 +400,7 @@ export default function Home() {
                   )}
                 </button>
                 {profileOpen && (
-                  <div className={`absolute right-0 top-10 z-[2000] w-72 rounded-xl border shadow-2xl backdrop-blur-sm overflow-hidden ${d.dropdownBg}`}>
+                  <div className={`absolute right-0 top-10 z-[2000] w-72 rounded-xl border shadow-2xl backdrop-blur-sm ${d.dropdownBg}`}>
                     {user && (
                       <div className={`px-4 py-3 border-b ${d.tabBorder}`}>
                         <div className="flex items-center gap-2.5">
@@ -570,7 +570,9 @@ export default function Home() {
             activePresets={activePresets}
             onPresetsChange={setActivePresets}
             canSave={!!user && !!searchArea}
+            hasSearchArea={!!searchArea}
             onSaveSearch={handleSaveSearch}
+            onSignInPrompt={() => { setAuthOpen(true) }}
           />
         </div>
 

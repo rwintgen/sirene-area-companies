@@ -41,9 +41,14 @@ export async function getPool(): Promise<Pool> {
     )
   }
 
-  const client = await pool.connect()
-  client.release()
-  console.log('[db] Pool connected.')
+  try {
+    const client = await pool.connect()
+    client.release()
+    console.log('[db] Pool connected.')
+  } catch (err) {
+    pool = null  // reset so the next request retries
+    throw err
+  }
   return pool
 }
 

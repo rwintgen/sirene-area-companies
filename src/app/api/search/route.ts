@@ -95,9 +95,9 @@ export async function GET() {
         const columns = await getColumnsFromDb()
         return NextResponse.json({ columns, sampleData: false })
       } catch (dbError) {
-        console.warn('Database unavailable, falling back to CSV:', dbError)
+        console.error('[db] Connection failed, falling back to CSV:', dbError)
         const { columns } = loadFromCsv()
-        return NextResponse.json({ columns, sampleData: true })
+        return NextResponse.json({ columns, sampleData: true, dbError: String(dbError) })
       }
     }
     const { columns } = loadFromCsv()
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
         console.log(`[postgis] Found ${companies.length} establishments.`)
         return NextResponse.json({ companies, columns, sampleData: false })
       } catch (dbError) {
-        console.warn('Database unavailable, falling back to CSV:', dbError)
+        console.error('[db] Search failed, falling back to CSV:', dbError)
         const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
         const { point } = await import('@turf/helpers')
         const { companies: all, columns } = loadFromCsv()

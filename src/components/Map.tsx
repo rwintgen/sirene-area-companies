@@ -57,11 +57,13 @@ function ClusteredMarkers({
   onCompanySelect,
   onExpand,
   popupColumns,
+  recentMarkerClickRef,
 }: {
   companies: any[]
   onCompanySelect: (company: any) => void
   onExpand: (company: any) => void
   popupColumns: string[]
+  recentMarkerClickRef: React.MutableRefObject<boolean>
 }) {
   const map = useMap()
   const groupRef = useRef<L.MarkerClusterGroup | null>(null)
@@ -107,7 +109,11 @@ function ClusteredMarkers({
     const markers = companies.map((c: any) => {
       const m = L.marker([c.lat, c.lon], { icon: defaultIcon })
       ;(m as any)._company = c
-      m.on('click', () => selectRef.current(c))
+      m.on('click', () => {
+        recentMarkerClickRef.current = true
+        setTimeout(() => { recentMarkerClickRef.current = false }, 100)
+        selectRef.current(c)
+      })
 
       let html = '<div class="min-w-[160px]">'
       if (popupColumns.length === 0) {
@@ -207,6 +213,28 @@ function ResizeWatcher() {
 }
 
 /**
+ * Clears the selected company when the user clicks the map background
+ * or closes the selected-marker popup via the X button.
+ * Uses `recentMarkerClickRef` to avoid deselecting when clicking a new marker.
+ */
+function MapDeselectHandler({ onCompanySelectRef, recentMarkerClickRef }: {
+  onCompanySelectRef: React.MutableRefObject<(c: any) => void>
+  recentMarkerClickRef: React.MutableRefObject<boolean>
+}) {
+  const map = useMap()
+  useEffect(() => {
+    const deselect = () => {
+      if (recentMarkerClickRef.current) return
+      onCompanySelectRef.current(null)
+    }
+    map.on('click', deselect)
+    map.on('popupclose', deselect)
+    return () => { map.off('click', deselect); map.off('popupclose', deselect) }
+  }, [map, onCompanySelectRef, recentMarkerClickRef])
+  return null
+}
+
+/**
  * Main Leaflet map with polygon/rectangle draw tools.
  * Renders company markers, handles draw-create/edit/delete events,
  * and supports restoring saved search geometries.
@@ -242,40 +270,41 @@ export default function Map({
 }) {
   const featureGroupRef = useRef<L.FeatureGroup | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
+  const onSearchRef = useRef(onSearch)
+  const onCompanySelectRef = useRef(onCompanySelect)
+  const recentMarkerClickRef = useRef(false)
+  onSearchRef.current = onSearch
+  onCompanySelectRef.current = onCompanySelect
 
   /**
    * Replaces native `title` with `data-tooltip` on Leaflet control buttons.
-   * Uses a MutationObserver so dynamically-created draw toolbar buttons
-   * (which Leaflet adds after initial render) are also caught.
+   * Uses lazy migration on hover (mouseover) instead of a MutationObserver
+   * to avoid interfering with Leaflet Draw's click-handler DOM mutations.
    */
   useEffect(() => {
     const migrate = (root: Element | Document = document) => {
       root.querySelectorAll<HTMLElement>('.leaflet-bar a[title], .leaflet-draw-toolbar a[title]').forEach((el) => {
-        el.setAttribute('data-tooltip', el.getAttribute('title')!)
-        el.removeAttribute('title')
-      })
-    }
-    const timers = [200, 600, 1200].map(ms => setTimeout(migrate, ms))
-    const observer = new MutationObserver((mutations) => {
-      requestAnimationFrame(() => {
-        for (const m of mutations) {
-          if (m.type === 'childList') {
-            m.addedNodes.forEach((n) => {
-              if (n instanceof HTMLElement) migrate(n.parentElement ?? document)
-            })
-          }
-          if (m.type === 'attributes' && m.attributeName === 'title' && m.target instanceof HTMLElement) {
-            const el = m.target
-            if (el.closest('.leaflet-bar, .leaflet-draw-toolbar') && el.getAttribute('title')) {
-              el.setAttribute('data-tooltip', el.getAttribute('title')!)
-              el.removeAttribute('title')
-            }
-          }
+        const t = el.getAttribute('title')
+        if (t) {
+          el.setAttribute('data-tooltip', t)
+          el.setAttribute('title', '')
         }
       })
-    })
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['title'] })
-    return () => { timers.forEach(clearTimeout); observer.disconnect() }
+    }
+    const timers = [200, 600, 1500].map(ms => setTimeout(migrate, ms))
+    const onHover = (e: Event) => {
+      const target = e.target as HTMLElement
+      const el = target.closest?.('.leaflet-bar a[title], .leaflet-draw-toolbar a[title]') as HTMLElement | null
+      if (el) {
+        const t = el.getAttribute('title')
+        if (t) {
+          el.setAttribute('data-tooltip', t)
+          el.setAttribute('title', '')
+        }
+      }
+    }
+    document.addEventListener('mouseover', onHover)
+    return () => { timers.forEach(clearTimeout); document.removeEventListener('mouseover', onHover) }
   }, [])
 
   /**
@@ -297,12 +326,6 @@ export default function Map({
     }
   }, [restoreGeometry])
 
-  const clearPreviousLayers = useCallback(() => {
-    if (featureGroupRef.current) {
-      featureGroupRef.current.clearLayers()
-    }
-  }, [])
-
   /** Keeps only the newest drawing layer and triggers a search with its geometry. */
   const onCreated = useCallback((e: any) => {
     if (featureGroupRef.current) {
@@ -313,8 +336,8 @@ export default function Map({
       })
     }
     const geo = e.layer.toGeoJSON().geometry
-    onSearch(geo)
-  }, [onSearch])
+    onSearchRef.current(geo)
+  }, [])
 
   const onEdited = useCallback((e: any) => {
     const layers = e.layers
@@ -323,13 +346,13 @@ export default function Map({
       lastGeometry = layer.toGeoJSON().geometry
     })
     if (lastGeometry) {
-      onSearch(lastGeometry)
+      onSearchRef.current(lastGeometry)
     }
-  }, [onSearch])
+  }, [])
 
   const onDeleted = useCallback(() => {
-    onSearch(null)
-  }, [onSearch])
+    onSearchRef.current(null)
+  }, [])
 
   return (
     <div className="w-full h-full relative" data-mapstyle={mapStyle}>
@@ -395,8 +418,9 @@ export default function Map({
           }}
         />
       </FeatureGroup>
-      <ClusteredMarkers companies={companies} onCompanySelect={onCompanySelect} onExpand={onExpand} popupColumns={popupColumns} />
+      <ClusteredMarkers companies={companies} onCompanySelect={onCompanySelect} onExpand={onExpand} popupColumns={popupColumns} recentMarkerClickRef={recentMarkerClickRef} />
       <SelectedMarkerPopup selectedCompany={selectedCompany} popupColumns={popupColumns} onExpand={onExpand} />
+      <MapDeselectHandler onCompanySelectRef={onCompanySelectRef} recentMarkerClickRef={recentMarkerClickRef} />
       <LocationUpdater userLocation={userLocation} />
       <MapRefCapture mapRef={mapInstanceRef} />
       <ResizeWatcher />

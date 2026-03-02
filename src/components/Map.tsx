@@ -28,19 +28,22 @@ const selectedIcon = new L.Icon({
 
 /**
  * Creates a custom DivIcon for cluster markers.
- * Uses neutral gray tones (dark mode–friendly) with a count label.
- * Size scales with cluster child count: small / medium / large.
+ * The outer div (className="cluster-wrap") overrides Leaflet's leaflet-div-icon
+ * defaults. The inner div carries all visual styling so flex centering is reliable.
  */
 function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const count = cluster.getChildCount()
-  let size = 36
-  let classes = 'cluster-marker cluster-small'
-  if (count >= 100) { size = 46; classes = 'cluster-marker cluster-large' }
-  else if (count >= 10) { size = 40; classes = 'cluster-marker cluster-medium' }
+  const display = count >= 1000 ? Math.round(count / 1000) + 'k' : String(count)
+  let size = 32
+  let sizeClass = 'ci-sm'
+  if (count >= 1000) { size = 44; sizeClass = 'ci-lg' }
+  else if (count >= 100) { size = 40; sizeClass = 'ci-md' }
+  else if (count >= 10) { size = 36; sizeClass = 'ci-sm' }
   return L.divIcon({
-    html: `<span>${count >= 1000 ? Math.round(count / 1000) + 'k' : count}</span>`,
-    className: classes,
+    html: `<div class="ci ${sizeClass}">${display}</div>`,
+    className: 'cluster-wrap',
     iconSize: L.point(size, size),
+    iconAnchor: L.point(size / 2, size / 2),
   })
 }
 

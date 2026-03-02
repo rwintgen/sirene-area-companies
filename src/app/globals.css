@@ -91,24 +91,32 @@ html, body {
 }
 
 /* === Marker cluster styling === */
-.cluster-marker {
+/* cluster-wrap resets Leaflet's leaflet-div-icon white background and border */
+.cluster-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+.ci {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1;
+  font-family: inherit;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  border: 2px solid rgba(255,255,255,0.6);
+  background: #8b5cf6;
+  border: 2px solid rgba(255,255,255,0.5);
 }
-.cluster-small  { background: rgba(139,92,246,0.75); }
-.cluster-medium { background: rgba(139,92,246,0.85); font-size: 13px; }
-.cluster-large  { background: rgba(139,92,246,0.95); font-size: 14px; }
-[data-theme=dark] .cluster-small  { background: rgba(255,255,255,0.55); color: #111827; border-color: rgba(255,255,255,0.3); }
-[data-theme=dark] .cluster-medium { background: rgba(255,255,255,0.65); color: #111827; border-color: rgba(255,255,255,0.3); font-size: 13px; }
-[data-theme=dark] .cluster-large  { background: rgba(255,255,255,0.75); color: #111827; border-color: rgba(255,255,255,0.3); font-size: 14px; }
+.ci-sm { font-size: 11px; }
+.ci-md { font-size: 12px; background: #7c3aed; }
+.ci-lg { font-size: 13px; background: #6d28d9; }
+[data-theme=dark] .ci    { background: rgba(255,255,255,0.9); color: #1f2937; border-color: rgba(255,255,255,0.2); }
+[data-theme=dark] .ci-md { background: rgba(255,255,255,0.95); }
+[data-theme=dark] .ci-lg { background: #ffffff; }
 
 /* === Leaflet controls: match reset-position button style === */
 

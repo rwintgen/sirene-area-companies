@@ -28,7 +28,7 @@ export default function Home() {
   const [restoreGeometry, setRestoreGeometry] = useState<{ geometry: any; ts: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSampleData, setIsSampleData] = useState<boolean | null>(null)
-  const [totalCount, setTotalCount] = useState<number | null>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
   const [resultLimit, setResultLimit] = useState<number | null>(null)
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>('system')
   const [systemDark, setSystemDark] = useState(true)
@@ -173,7 +173,7 @@ export default function Home() {
       setSearchArea(null)
       setSelectedCompany(null)
       setActiveSearchId(null)
-      setTotalCount(null)
+      setIsTruncated(false)
       setResultLimit(null)
       setIsLoading(false)
       return
@@ -203,7 +203,7 @@ export default function Home() {
       setSelectedCompany(null)
       setActiveSearchId(null)
       if (typeof data.sampleData === 'boolean') setIsSampleData(data.sampleData)
-      if (typeof data.totalCount === 'number') setTotalCount(data.totalCount)
+      if (typeof data.truncated === 'boolean') setIsTruncated(data.truncated)
       if (typeof data.resultLimit === 'number') setResultLimit(data.resultLimit)
       if (data.columns && columns.length === 0) {
         setColumns(data.columns)
@@ -239,6 +239,8 @@ export default function Home() {
    * Derived company list with active filters applied.
    * Used to keep map markers in sync with the filtered list view.
    */
+  const MAP_MARKER_LIMIT = 8_000
+
   const mapCompanies = useMemo(() => {
     let result: any[] = [...companies]
     if (filters.length > 0) {
@@ -260,6 +262,13 @@ export default function Home() {
     result = applyPresets(result, activePresets)
     return result
   }, [companies, filters, activePresets])
+
+  /** Subsample for map rendering to keep Leaflet performant. List shows all. */
+  const mapMarkers = useMemo(() => {
+    if (mapCompanies.length <= MAP_MARKER_LIMIT) return mapCompanies
+    const step = Math.ceil(mapCompanies.length / MAP_MARKER_LIMIT)
+    return mapCompanies.filter((_, i) => i % step === 0)
+  }, [mapCompanies])
 
   const handleSignOut = async () => {
     await signOut(auth)
@@ -333,7 +342,7 @@ export default function Home() {
       {/* Map */}
       <div className="flex-1 h-full relative">
         <Map
-          companies={mapCompanies}
+          companies={mapMarkers}
           selectedCompany={selectedCompany}
           onSearch={handleSearch}
           onCompanySelect={setSelectedCompany}
@@ -370,13 +379,13 @@ export default function Home() {
             <span className="text-[11px] font-medium">Running on sample data — full dataset not connected</span>
           </div>
         )}
-        {totalCount !== null && resultLimit !== null && totalCount > resultLimit && (
+        {isTruncated && resultLimit !== null && (
           <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-[11px] font-medium">
-              Showing {resultLimit.toLocaleString()} of {totalCount.toLocaleString()} results — zoom in or refine your area
+              Showing first {resultLimit.toLocaleString()} results — zoom in or refine your area
             </span>
           </div>
         )}

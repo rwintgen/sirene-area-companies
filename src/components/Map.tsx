@@ -2,9 +2,11 @@
 
 import { MapContainer, TileLayer, FeatureGroup, useMap, Marker, Popup } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import { useRef, useEffect, useCallback } from 'react'
 
 import L from 'leaflet'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
 
 const FRANCE_CENTER: [number, number] = [46.603354, 1.888334]
 const FRANCE_ZOOM = 6
@@ -23,6 +25,24 @@ const selectedIcon = new L.Icon({
   iconAnchor: [18, 18],
   popupAnchor: [0, -22],
 });
+
+/**
+ * Creates a custom DivIcon for cluster markers.
+ * Uses neutral gray tones (dark mode–friendly) with a count label.
+ * Size scales with cluster child count: small / medium / large.
+ */
+function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
+  const count = cluster.getChildCount()
+  let size = 36
+  let classes = 'cluster-marker cluster-small'
+  if (count >= 100) { size = 46; classes = 'cluster-marker cluster-large' }
+  else if (count >= 10) { size = 40; classes = 'cluster-marker cluster-medium' }
+  return L.divIcon({
+    html: `<span>${count >= 1000 ? Math.round(count / 1000) + 'k' : count}</span>`,
+    className: classes,
+    iconSize: L.point(size, size),
+  })
+}
 
 /** Renders and auto-zooms a larger marker with a popup for the selected company. */
 function SelectedMarkerPopup({ selectedCompany, popupColumns, onExpand }: { selectedCompany: any; popupColumns: string[]; onExpand: (company: any) => void }) {
@@ -287,42 +307,50 @@ export default function Map({
           }}
         />
       </FeatureGroup>
-      {companies.map((company, idx) => {
-        const companyId = company.fields?.SIRET || `row-${idx}`
-        const isSelected = selectedCompany && (selectedCompany.fields?.SIRET === company.fields?.SIRET)
-        if (isSelected) return null
-        return (
-          <Marker
-            key={companyId}
-            position={[company.lat, company.lon]}
-            icon={defaultIcon}
-            eventHandlers={{
-              click: () => onCompanySelect(company),
-            }}
-          >
-            <Popup>
-              <div className="min-w-[160px]">
-                {popupColumns.length === 0 ? (
-                  <p className="text-xs italic text-gray-400">No columns selected</p>
-                ) : (
-                  popupColumns.map((col, i) => {
-                    const val = company.fields?.[col] ?? ''
-                    if (i === 0) return <p key={col} className="font-semibold text-sm leading-tight">{val || '—'}</p>
-                    return <p key={col} className="text-xs text-gray-400 mt-0.5">{col}: {val}</p>
-                  })
-                )}
-                <button
-                  onClick={() => onExpand(company)}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors"
-                >
-                  View details
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-                </button>
-              </div>
-            </Popup>
-          </Marker>
-        )
-      })}
+      <MarkerClusterGroup
+        chunkedLoading
+        maxClusterRadius={60}
+        spiderfyOnMaxZoom
+        showCoverageOnHover={false}
+        iconCreateFunction={createClusterIcon}
+      >
+        {companies.map((company, idx) => {
+          const companyId = company.fields?.SIRET || `row-${idx}`
+          const isSelected = selectedCompany && (selectedCompany.fields?.SIRET === company.fields?.SIRET)
+          if (isSelected) return null
+          return (
+            <Marker
+              key={companyId}
+              position={[company.lat, company.lon]}
+              icon={defaultIcon}
+              eventHandlers={{
+                click: () => onCompanySelect(company),
+              }}
+            >
+              <Popup>
+                <div className="min-w-[160px]">
+                  {popupColumns.length === 0 ? (
+                    <p className="text-xs italic text-gray-400">No columns selected</p>
+                  ) : (
+                    popupColumns.map((col, i) => {
+                      const val = company.fields?.[col] ?? ''
+                      if (i === 0) return <p key={col} className="font-semibold text-sm leading-tight">{val || '—'}</p>
+                      return <p key={col} className="text-xs text-gray-400 mt-0.5">{col}: {val}</p>
+                    })
+                  )}
+                  <button
+                    onClick={() => onExpand(company)}
+                    className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors"
+                  >
+                    View details
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          )
+        })}
+      </MarkerClusterGroup>
       <SelectedMarkerPopup selectedCompany={selectedCompany} popupColumns={popupColumns} onExpand={onExpand} />
       <LocationUpdater userLocation={userLocation} />
       <MapRefCapture mapRef={mapInstanceRef} />

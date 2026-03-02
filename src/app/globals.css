@@ -90,6 +90,26 @@ html, body {
   overflow: hidden;
 }
 
+/* === Marker cluster styling === */
+.cluster-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border: 2px solid rgba(255,255,255,0.6);
+}
+.cluster-small  { background: rgba(139,92,246,0.75); }
+.cluster-medium { background: rgba(139,92,246,0.85); font-size: 13px; }
+.cluster-large  { background: rgba(139,92,246,0.95); font-size: 14px; }
+[data-theme=dark] .cluster-small  { background: rgba(255,255,255,0.55); color: #111827; border-color: rgba(255,255,255,0.3); }
+[data-theme=dark] .cluster-medium { background: rgba(255,255,255,0.65); color: #111827; border-color: rgba(255,255,255,0.3); font-size: 13px; }
+[data-theme=dark] .cluster-large  { background: rgba(255,255,255,0.75); color: #111827; border-color: rgba(255,255,255,0.3); font-size: 14px; }
+
 /* === Leaflet controls: match reset-position button style === */
 
 /* Remove outer container border & shadow so buttons appear separate */

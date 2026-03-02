@@ -57,25 +57,36 @@ let dbColumnsCache: string[] | null = null
  * falls within the given GeoJSON geometry (polygon/rectangle).
  * Column names are lazily cached from the first result's JSONB `fields` keys.
  */
-async function searchWithPostGIS(geometry: any): Promise<{ companies: Company[]; columns: string[] }> {
+const RESULT_LIMIT = 50_000
+
+async function searchWithPostGIS(geometry: any): Promise<{ companies: Company[]; columns: string[]; totalCount: number }> {
   const pool = await getPool()
   const geoJson = JSON.stringify(geometry)
 
-  const { rows } = await pool.query<{ lat: number; lon: number; fields: Record<string, string> }>(
-    `SELECT lat, lon, fields
-     FROM establishments
-     WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)
-     LIMIT 5000`,
-    [geoJson]
-  )
+  const [countResult, dataResult] = await Promise.all([
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)`,
+      [geoJson]
+    ),
+    pool.query<{ lat: number; lon: number; fields: Record<string, string> }>(
+      `SELECT lat, lon, fields
+       FROM establishments
+       WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)
+       LIMIT ${RESULT_LIMIT}`,
+      [geoJson]
+    ),
+  ])
 
-  if (!dbColumnsCache && rows.length > 0) {
-    dbColumnsCache = Object.keys(rows[0].fields)
+  const totalCount = parseInt(countResult.rows[0]?.count ?? '0', 10)
+
+  if (!dbColumnsCache && dataResult.rows.length > 0) {
+    dbColumnsCache = Object.keys(dataResult.rows[0].fields)
   }
 
   return {
-    companies: rows.map((r) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+    companies: dataResult.rows.map((r) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
     columns: dbColumnsCache ?? [],
+    totalCount,
   }
 }
 
@@ -120,9 +131,9 @@ export async function POST(req: NextRequest) {
 
     if (isDbConfigured()) {
       try {
-        const { companies, columns } = await searchWithPostGIS(geometry)
-        console.log(`[postgis] Found ${companies.length} establishments.`)
-        return NextResponse.json({ companies, columns, sampleData: false })
+        const { companies, columns, totalCount } = await searchWithPostGIS(geometry)
+        console.log(`[postgis] Found ${companies.length}/${totalCount} establishments.`)
+        return NextResponse.json({ companies, columns, sampleData: false, totalCount, resultLimit: RESULT_LIMIT })
       } catch (dbError) {
         console.error('[db] Search failed, falling back to CSV:', dbError)
         const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
@@ -130,7 +141,7 @@ export async function POST(req: NextRequest) {
         const { companies: all, columns } = loadFromCsv()
         const companies = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
         console.log(`[csv] Found ${companies.length} establishments.`)
-        return NextResponse.json({ companies, columns, sampleData: true })
+        return NextResponse.json({ companies, columns, sampleData: true, totalCount: companies.length })
       }
     }
 
@@ -139,7 +150,7 @@ export async function POST(req: NextRequest) {
     const { companies: all, columns } = loadFromCsv()
     const companies = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
     console.log(`[csv] Found ${companies.length} establishments.`)
-    return NextResponse.json({ companies, columns, sampleData: true })
+    return NextResponse.json({ companies, columns, sampleData: true, totalCount: companies.length })
   } catch (error) {
     console.error('Search API error:', error)
     return NextResponse.json({ error: 'Search failed', details: String(error) }, { status: 500 })

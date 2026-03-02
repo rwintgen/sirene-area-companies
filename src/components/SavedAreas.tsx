@@ -105,7 +105,7 @@ export default function SavedAreas({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div className={`pointer-events-none absolute right-0 bottom-full mb-2 w-52 rounded-lg border px-3 py-2 text-[11px] leading-relaxed shadow-xl opacity-0 group-hover/info:opacity-100 transition-opacity z-50 ${
+          <div className={`pointer-events-none absolute right-0 bottom-full mb-2 w-52 rounded-lg border px-3 py-2 text-[11px] leading-relaxed shadow-xl opacity-0 group-hover/info:opacity-100 transition-opacity z-[9999] ${
             isDark ? 'bg-gray-800 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-600'
           }`}>
             Saves the current map area along with any active filters and sort settings, so you can restore the exact same search later.
@@ -114,7 +114,7 @@ export default function SavedAreas({
       </div>
 
       {isOpen && (
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-1 max-h-[35vh] overflow-y-auto overflow-x-hidden">
           {savedAreas.length === 0 && (
             <p className={`text-xs py-2 ${t.emptyText}`}>No saved searches yet.</p>
           )}

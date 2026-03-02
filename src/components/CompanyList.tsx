@@ -302,7 +302,7 @@ export default function CompanyList({
               </svg>
             </button>
             {!showSort && sortCriteria.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{sortCriteria.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{sortCriteria.length}</span>
             )}
           </div>
           <div className="relative">
@@ -316,7 +316,7 @@ export default function CompanyList({
               </svg>
             </button>
             {!showPresets && activePresets.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{activePresets.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{activePresets.length}</span>
             )}
           </div>
           <div className="relative">
@@ -330,14 +330,14 @@ export default function CompanyList({
               </svg>
             </button>
             {!showFilters && filters.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{filters.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{filters.length}</span>
             )}
           </div>
         </div>
       </div>
 
       {saveNotice && (
-        <div className={`flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium animate-prefs-saved ${isDark ? 'bg-white/5 text-gray-300' : 'bg-violet-50 text-violet-700'}`}>
+        <div className={`flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-medium animate-save-notice ${isDark ? 'bg-white/5 text-gray-300' : 'bg-violet-50 text-violet-700'}`}>
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span>Sign in to save searches</span>
           <button onClick={onSignInPrompt} className={`ml-auto text-[11px] font-semibold underline transition-colors ${isDark ? 'text-gray-200 hover:text-white' : 'text-violet-600 hover:text-violet-800'}`}>Sign in</button>

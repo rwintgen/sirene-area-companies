@@ -504,7 +504,7 @@ export default function Home() {
                     {user ? (
                       <>
                         <div className={`border-t ${d.tabBorder}`}>
-                          <div className="px-3 py-2.5 max-h-[40vh] overflow-y-auto overflow-x-hidden">
+                          <div className="px-3 py-2.5">
                             <SavedAreas
                               onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id) => {
                                 handleSearch(geo)

@@ -149,12 +149,11 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, curr
       popular: false,
       isFree: false,
       features: [
-        { text: 'First 50,000 results free', included: true },
         { text: 'Unlimited searches', included: true },
-        { text: 'AI company overviews', included: true },
         { text: '10,000 results per query', included: true },
         { text: '20 saved searches', included: true },
-        { text: 'Pay-per-use after free tier', included: true },
+        { text: 'CSV & JSON export', included: true },
+        { text: 'AI overviews (pay-per-use)', included: true },
       ],
     },
     {
@@ -172,8 +171,8 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, curr
         { text: '100 searches / month', included: true },
         { text: '50,000 results per query', included: true },
         { text: 'Unlimited saved searches', included: true },
-        { text: '250 AI company overviews', included: true },
         { text: 'All export formats', included: true },
+        { text: '250 AI overviews / month', included: true },
       ],
     },
     {
@@ -188,11 +187,11 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, curr
       popular: false,
       isFree: false,
       features: [
-        { text: 'Everything in Individual', included: true },
+        { text: 'Unlimited searches', included: true },
         { text: 'Custom result limits', included: true },
-        { text: 'Custom presets & filters', included: true },
-        { text: 'Seat allocation & permissions', included: true },
-        { text: 'Plug in your own data', included: true },
+        { text: 'Unlimited saved searches', included: true },
+        { text: 'All export formats', included: true },
+        { text: 'Unlimited AI overviews', included: true },
       ],
     },
   ]

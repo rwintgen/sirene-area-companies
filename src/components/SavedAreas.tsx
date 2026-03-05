@@ -20,11 +20,13 @@ interface Filter {
 export default function SavedAreas({
   onRestoreSearch,
   onDeleteCurrentSearch,
+  onCountChange,
   activeSearchId,
   isDark,
 }: {
   onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string) => void
   onDeleteCurrentSearch: () => void
+  onCountChange?: (count: number) => void
   activeSearchId: string | null
   isDark: boolean
 }) {
@@ -45,6 +47,7 @@ export default function SavedAreas({
           areas.push({ id: doc.id, ...doc.data() })
         })
         setSavedAreas(areas)
+        onCountChange?.(areas.length)
       })
       return () => unsubscribe()
     }

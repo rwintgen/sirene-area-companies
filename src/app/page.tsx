@@ -10,7 +10,19 @@ import CompanyDetail from '@/components/CompanyDetail'
 import ExportModal from '@/components/ExportModal'
 import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
+import UsageTracker from '@/components/UsageTracker'
 import { applyPresets } from '@/lib/presets'
+import {
+  type UserTier,
+  getUserKey,
+  getResultLimit,
+  canSearch,
+  incrementSearchCount,
+  getSearchCount,
+  getSavedSearchLimit,
+  canUseAI,
+  TIER_LIMITS,
+} from '@/lib/usage'
 import { auth, db } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut } from 'firebase/auth'
@@ -48,6 +60,9 @@ export default function Home() {
   const profileLoaded = useRef(false)
   const searchAbort = useRef<AbortController | null>(null)
   const [prefsSaved, setPrefsSaved] = useState(false)
+  const [savedSearchCount, setSavedSearchCount] = useState(0)
+  const [searchCount, setSearchCount] = useState(0)
+  const [userTier] = useState<UserTier>('free')
 
   const prefsKey = (uid: string) => `prefs_${uid}`
 
@@ -72,6 +87,12 @@ export default function Home() {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
+
+  /** Initialise search count from localStorage on mount / user change. */
+  useEffect(() => {
+    const uKey = getUserKey(user?.uid ?? null)
+    setSearchCount(getSearchCount(uKey))
+  }, [user])
 
   /**
    * Load user preferences on auth change.
@@ -184,14 +205,21 @@ export default function Home() {
       console.error('Invalid geometry:', geometry)
       return
     }
+    const uKey = getUserKey(user?.uid ?? null)
+    if (!canSearch(uKey, userTier)) {
+      const limit = TIER_LIMITS[userTier].searchesPerMonth
+      setPaywallFeature(`more than ${limit} searches per month`)
+      return
+    }
     const controller = new AbortController()
     searchAbort.current = controller
     setIsLoading(true)
     try {
+      const tierLimit = getResultLimit(userTier)
       const response = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ geometry }),
+        body: JSON.stringify({ geometry, limit: tierLimit }),
         signal: controller.signal,
       })
       if (!response.ok) {
@@ -199,6 +227,8 @@ export default function Home() {
         console.error('Search error:', error)
         return
       }
+      const newCount = incrementSearchCount(uKey)
+      setSearchCount(newCount)
       const data = await response.json()
       setCompanies(data.companies)
       setSearchArea(geometry)
@@ -226,6 +256,11 @@ export default function Home() {
 
   const handleSaveSearch = useCallback(async (name: string) => {
     if (!user || !searchArea) return
+    const maxSaved = getSavedSearchLimit(userTier)
+    if (maxSaved !== Infinity && savedSearchCount >= maxSaved) {
+      setPaywallFeature(`more than ${maxSaved} saved searches`)
+      return
+    }
     await addDoc(collection(db, 'savedAreas'), {
       name,
       userId: user.uid,
@@ -235,7 +270,7 @@ export default function Home() {
       presetsJson: JSON.stringify(activePresets),
       timestamp: new Date(),
     })
-  }, [user, searchArea, filters, sortCriteria, activePresets])
+  }, [user, searchArea, filters, sortCriteria, activePresets, userTier, savedSearchCount])
 
   const handleSignInPrompt = useCallback(() => { setAuthOpen(true) }, [])
 
@@ -265,6 +300,18 @@ export default function Home() {
     return result
   }, [companies, filters, activePresets])
 
+  const usageWarnings = useMemo(() => {
+    const limits = TIER_LIMITS[userTier]
+    const warnings: string[] = []
+    if (limits.searchesPerMonth !== Infinity && searchCount >= limits.searchesPerMonth * 0.8) {
+      warnings.push(`${searchCount}/${limits.searchesPerMonth} monthly searches used`)
+    }
+    if (limits.savedSearches !== Infinity && savedSearchCount >= limits.savedSearches * 0.8) {
+      warnings.push(`${savedSearchCount}/${limits.savedSearches} saved searches used`)
+    }
+    return warnings
+  }, [userTier, searchCount, savedSearchCount])
+
   const handleSignOut = async () => {
     await signOut(auth)
   }
@@ -274,8 +321,12 @@ export default function Home() {
   }, [])
 
   const handleAskAI = useCallback((_company: any) => {
-    setPaywallFeature('AI Overview')
-  }, [])
+    if (!canUseAI(userTier)) {
+      setPaywallFeature('AI Overview')
+      return
+    }
+    console.log('AI overview for:', _company)
+  }, [userTier])
 
   const d = isDark
     ? {
@@ -384,6 +435,14 @@ export default function Home() {
             </span>
           </div>
         )}
+        {usageWarnings.map((msg) => (
+          <div key={msg} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span className="text-[11px] font-medium">{msg} — <button onClick={() => setPaywallFeature('higher usage limits')} className="underline hover:no-underline">upgrade</button></span>
+          </div>
+        ))}
         {/* Header */}
         <div className={`px-5 pt-5 pb-4 border-b ${d.headerBorder}`}>
           <div className="flex items-center justify-between">
@@ -521,6 +580,17 @@ export default function Home() {
                       )}
                     </div>
 
+                    <div className={`border-t ${d.tabBorder}`}>
+                      <div className="px-3 py-2.5">
+                        <UsageTracker
+                          isDark={isDark}
+                          userTier={userTier}
+                          searchCount={searchCount}
+                          savedSearchCount={savedSearchCount}
+                        />
+                      </div>
+                    </div>
+
                     {user ? (
                       <>
                         <div className={`border-t ${d.tabBorder}`}>
@@ -536,6 +606,7 @@ export default function Home() {
                                 setProfileOpen(false)
                               }}
                               onDeleteCurrentSearch={() => handleSearch(null)}
+                              onCountChange={setSavedSearchCount}
                               activeSearchId={activeSearchId}
                               isDark={isDark}
                             />

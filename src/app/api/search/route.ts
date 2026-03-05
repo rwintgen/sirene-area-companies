@@ -59,16 +59,17 @@ let dbColumnsCache: string[] | null = null
  */
 const RESULT_LIMIT = 50_000
 
-async function searchWithPostGIS(geometry: any): Promise<{ companies: Company[]; columns: string[]; truncated: boolean }> {
+async function searchWithPostGIS(geometry: any, limit: number): Promise<{ companies: Company[]; columns: string[]; truncated: boolean }> {
   const pool = await getPool()
   const geoJson = JSON.stringify(geometry)
+  const effectiveLimit = Math.min(Math.max(limit, 1), RESULT_LIMIT)
 
   const { rows } = await pool.query<{ lat: number; lon: number; fields: Record<string, string> }>(
     `SELECT lat, lon, fields
      FROM establishments
      WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)
-     LIMIT ${RESULT_LIMIT}`,
-    [geoJson]
+     LIMIT $2`,
+    [geoJson, effectiveLimit]
   )
 
   if (!dbColumnsCache && rows.length > 0) {
@@ -78,7 +79,7 @@ async function searchWithPostGIS(geometry: any): Promise<{ companies: Company[];
   return {
     companies: rows.map((r) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
     columns: dbColumnsCache ?? [],
-    truncated: rows.length === RESULT_LIMIT,
+    truncated: rows.length === effectiveLimit,
   }
 }
 
@@ -111,10 +112,13 @@ export async function GET() {
   }
 }
 
-/** POST: accepts a GeoJSON geometry and returns companies within that area. */
+/** POST: accepts a GeoJSON geometry and an optional result limit, returns companies within that area. */
 export async function POST(req: NextRequest) {
   try {
-    const { geometry } = await req.json()
+    const { geometry, limit: requestedLimit } = await req.json()
+    const limit = typeof requestedLimit === 'number' && requestedLimit > 0
+      ? Math.min(requestedLimit, RESULT_LIMIT)
+      : RESULT_LIMIT
 
     if (!geometry) return NextResponse.json({ companies: [] })
     if (!geometry.coordinates || !Array.isArray(geometry.coordinates)) {
@@ -123,26 +127,30 @@ export async function POST(req: NextRequest) {
 
     if (isDbConfigured()) {
       try {
-        const { companies, columns, truncated } = await searchWithPostGIS(geometry)
-        console.log(`[postgis] Found ${companies.length} establishments${truncated ? ' (truncated)' : ''}.`)
-        return NextResponse.json({ companies, columns, sampleData: false, truncated, resultLimit: RESULT_LIMIT })
+        const { companies, columns, truncated } = await searchWithPostGIS(geometry, limit)
+        console.log(`[postgis] Found ${companies.length} establishments${truncated ? ' (truncated)' : ''} (limit: ${limit}).`)
+        return NextResponse.json({ companies, columns, sampleData: false, truncated, resultLimit: limit })
       } catch (dbError) {
         console.error('[db] Search failed, falling back to CSV:', dbError)
         const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
         const { point } = await import('@turf/helpers')
         const { companies: all, columns } = loadFromCsv()
-        const companies = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
-        console.log(`[csv] Found ${companies.length} establishments.`)
-        return NextResponse.json({ companies, columns, sampleData: true, truncated: false })
+        const matched = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
+        const truncated = matched.length > limit
+        const companies = truncated ? matched.slice(0, limit) : matched
+        console.log(`[csv] Found ${matched.length} establishments, returning ${companies.length} (limit: ${limit}).`)
+        return NextResponse.json({ companies, columns, sampleData: true, truncated })
       }
     }
 
     const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
     const { point } = await import('@turf/helpers')
     const { companies: all, columns } = loadFromCsv()
-    const companies = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
-    console.log(`[csv] Found ${companies.length} establishments.`)
-    return NextResponse.json({ companies, columns, sampleData: true, truncated: false })
+    const matched = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
+    const truncated = matched.length > limit
+    const companies = truncated ? matched.slice(0, limit) : matched
+    console.log(`[csv] Found ${matched.length} establishments, returning ${companies.length} (limit: ${limit}).`)
+    return NextResponse.json({ companies, columns, sampleData: true, truncated })
   } catch (error) {
     console.error('Search API error:', error)
     return NextResponse.json({ error: 'Search failed', details: String(error) }, { status: 500 })

@@ -365,6 +365,35 @@ export default function Home() {
     console.log('AI overview for:', _company)
   }, [userTier])
 
+  /** Redirect the user to a Stripe Checkout session for the selected plan. */
+  const handleCheckout = useCallback(async (planId: string, billing: 'monthly' | 'yearly') => {
+    if (!user) { setShowAuth(true); return }
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planId, billing }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {}
+  }, [user])
+
+  /** Redirect paid users to the Stripe Customer Portal for subscription management. */
+  const handleManagePlan = useCallback(async () => {
+    if (!user) return
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch('/api/portal', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch {}
+  }, [user])
+
   const d = isDark
     ? {
         main: 'bg-gray-950',

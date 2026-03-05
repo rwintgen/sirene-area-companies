@@ -279,13 +279,20 @@ function CompanyList({
                   setTimeout(() => setSaveNotice(false), 5000)
                   return
                 }
-                handleSave()
+                if (isSaving) {
+                  setIsSaving(false)
+                  setSaveName('')
+                } else {
+                  setIsSaving(true)
+                  setSaveName('')
+                  setTimeout(() => saveInputRef.current?.focus(), 50)
+                }
               }}
-              className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all ${t.saveBtn}`}
+              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all ${isSaving ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Save search" data-tooltip-pos="left"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
             </button>
           )}

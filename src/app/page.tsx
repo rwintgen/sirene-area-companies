@@ -88,10 +88,26 @@ export default function Home() {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  /** Initialise search count from localStorage on mount / user change. */
+  /** Initialise search count from localStorage on mount, then sync from Firestore for logged-in users. */
   useEffect(() => {
     const uKey = getUserKey(user?.uid ?? null)
     setSearchCount(getSearchCount(uKey))
+    if (!user) return
+    user.getIdToken().then((token) =>
+      fetch('/api/usage', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data && typeof data.searchCount === 'number') {
+            setSearchCount(data.searchCount)
+            // Seed local cache so the client-side display stays accurate
+            const uKey2 = getUserKey(user.uid)
+            try {
+              localStorage.setItem(`pdm_usage_${uKey2}`, JSON.stringify({ searchCount: data.searchCount, monthKey: data.monthKey }))
+            } catch {}
+          }
+        })
+        .catch(() => {})
+    ).catch(() => {})
   }, [user])
 
   /**
@@ -206,7 +222,8 @@ export default function Home() {
       return
     }
     const uKey = getUserKey(user?.uid ?? null)
-    if (!canSearch(uKey, userTier)) {
+    // Anonymous users: enforce limit client-side. Logged-in users: server enforces.
+    if (!user && !canSearch(uKey, userTier)) {
       const limit = TIER_LIMITS[userTier].searchesPerMonth
       setPaywallFeature(`more than ${limit} searches per month`)
       return
@@ -216,20 +233,39 @@ export default function Home() {
     setIsLoading(true)
     try {
       const tierLimit = getResultLimit(userTier)
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (user) {
+        try { headers['Authorization'] = `Bearer ${await user.getIdToken()}` } catch {}
+      }
       const response = await fetch('/api/search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ geometry, limit: tierLimit }),
         signal: controller.signal,
       })
+      if (response.status === 429) {
+        const limit = TIER_LIMITS[userTier].searchesPerMonth
+        setPaywallFeature(`more than ${limit} searches per month`)
+        return
+      }
       if (!response.ok) {
         const error = await response.json()
         console.error('Search error:', error)
         return
       }
-      const newCount = incrementSearchCount(uKey)
-      setSearchCount(newCount)
       const data = await response.json()
+      if (user && typeof data.searchCountAfter === 'number') {
+        // Server is authoritative for logged-in users — update state and local cache
+        setSearchCount(data.searchCountAfter)
+        try {
+          const monthKey = new Date().toISOString().slice(0, 7)
+          localStorage.setItem(`pdm_usage_${uKey}`, JSON.stringify({ searchCount: data.searchCountAfter, monthKey }))
+        } catch {}
+      } else if (!user) {
+        // Anonymous users: increment local counter
+        const newCount = incrementSearchCount(uKey)
+        setSearchCount(newCount)
+      }
       setCompanies(data.companies)
       setSearchArea(geometry)
       setSelectedCompany(null)
@@ -261,6 +297,7 @@ export default function Home() {
       setPaywallFeature(`more than ${maxSaved} saved searches`)
       return
     }
+    setSavedSearchCount((c) => c + 1)
     await addDoc(collection(db, 'savedAreas'), {
       name,
       userId: user.uid,
@@ -570,24 +607,26 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {user && prefsSaved && (
-                        <div className="flex items-center justify-end h-5">
-                          <span className={`text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'} animate-prefs-saved`}>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                            Preferences saved
-                          </span>
-                        </div>
-                      )}
-                    </div>
 
                     <div className={`border-t ${d.tabBorder}`}>
-                      <div className="px-3 py-2.5">
+                      <div className="px-3 py-2.5 space-y-2">
                         <UsageTracker
                           isDark={isDark}
                           userTier={userTier}
                           searchCount={searchCount}
                           savedSearchCount={savedSearchCount}
+                          isLoggedIn={!!user}
                         />
+                        <button
+                          onClick={() => { setPaywallFeature('plan'); setProfileOpen(false) }}
+                          className={`w-full text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${
+                            isDark
+                              ? 'border-white/10 text-gray-300 hover:bg-white/5 hover:border-white/20'
+                              : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                          }`}
+                        >
+                          {userTier === 'free' ? 'Upgrade plan' : 'Manage plan'}
+                        </button>
                       </div>
                     </div>
 
@@ -613,12 +652,20 @@ export default function Home() {
                           </div>
                         </div>
                         <div className={`px-4 py-2.5 border-t ${d.tabBorder}`}>
-                          <button
-                            onClick={handleSignOut}
-                            className={`w-full text-left text-xs font-medium transition-colors ${d.signOutBtn}`}
-                          >
-                            Sign Out
-                          </button>
+                          <div className="flex items-center justify-between">
+                            <button
+                              onClick={handleSignOut}
+                              className={`text-xs font-medium transition-colors ${d.signOutBtn}`}
+                            >
+                              Sign Out
+                            </button>
+                            {prefsSaved && (
+                              <span className={`text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'} animate-prefs-saved`}>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                Preferences saved
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </>
                     ) : (
@@ -673,14 +720,14 @@ export default function Home() {
             Data source: SIRENE (INSEE) &middot; Open Data
           </p>
           <button
-            onClick={() => setExportOpen(true)}
+            onClick={() => { if (!user) { setAuthOpen(true) } else { setExportOpen(true) } }}
             disabled={companies.length === 0}
             className={`text-[10px] font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
               companies.length > 0
                 ? isDark ? 'text-gray-300 border-white/15 hover:border-white/30 hover:bg-white/5' : 'text-violet-600 border-violet-300 hover:border-violet-400 hover:bg-violet-50'
                 : isDark ? 'text-gray-700 border-white/5 cursor-not-allowed' : 'text-gray-400 border-gray-200 cursor-not-allowed'
             }`}
-            data-tooltip="Export search results" data-tooltip-pos="left"
+            data-tooltip={user ? 'Export search results' : 'Sign in to export'} data-tooltip-pos="left"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

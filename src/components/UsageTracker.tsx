@@ -8,6 +8,7 @@ interface UsageTrackerProps {
   userTier: UserTier
   searchCount: number
   savedSearchCount: number
+  isLoggedIn: boolean
 }
 
 interface UsageRow {
@@ -21,11 +22,11 @@ interface UsageRow {
  * Collapsible panel displaying current usage of tier-limited features.
  * Styled to match the SavedAreas section in the settings dropdown.
  */
-export default function UsageTracker({ isDark, userTier, searchCount, savedSearchCount }: UsageTrackerProps) {
+export default function UsageTracker({ isDark, userTier, searchCount, savedSearchCount, isLoggedIn }: UsageTrackerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const limits = TIER_LIMITS[userTier]
 
-  const rows: UsageRow[] = [
+  const allRows: UsageRow[] = [
     {
       label: 'Searches this month',
       current: searchCount,
@@ -35,6 +36,7 @@ export default function UsageTracker({ isDark, userTier, searchCount, savedSearc
       label: 'Saved searches',
       current: savedSearchCount,
       limit: limits.savedSearches === Infinity ? null : limits.savedSearches,
+      unavailable: !isLoggedIn,
     },
     {
       label: 'Results per query',
@@ -48,6 +50,8 @@ export default function UsageTracker({ isDark, userTier, searchCount, savedSearc
       unavailable: !limits.aiOverviews,
     },
   ]
+
+  const rows = allRows
 
   const t = isDark
     ? {

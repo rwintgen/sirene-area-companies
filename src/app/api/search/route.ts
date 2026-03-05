@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isDbConfigured, getPool } from '@/lib/db'
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
+import { TIER_LIMITS } from '@/lib/usage'
 
 import fs from 'fs'
 import path from 'path'
@@ -51,6 +53,46 @@ function loadFromCsv(): { companies: Company[]; columns: string[] } {
 }
 
 let dbColumnsCache: string[] | null = null
+
+function getMonthKey(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * For authenticated requests: verifies the Firebase ID token, then uses a
+ * Firestore transaction to atomically read, enforce, and increment the
+ * monthly search counter for that user.
+ *
+ * Returns the new count on success, or throws an error with `code: 'monthly_limit_reached'`
+ * if the user has exhausted their quota.
+ */
+async function enforceAndIncrementSearchCount(token: string): Promise<number> {
+  const decoded = await getAdminAuth().verifyIdToken(token)
+  const uid = decoded.uid
+  const month = getMonthKey()
+  const docRef = getAdminDb().collection('userUsage').doc(uid)
+
+  // Hard-coded to free tier limit until payment tiers are stored server-side.
+  const limit = TIER_LIMITS.free.searchesPerMonth
+
+  let newCount = 0
+  await getAdminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(docRef)
+    const current = snap.exists && snap.data()!.monthKey === month
+      ? (snap.data()!.searchCount ?? 0)
+      : 0
+    if (current >= limit) {
+      const err: any = new Error('Monthly search limit reached')
+      err.code = 'monthly_limit_reached'
+      throw err
+    }
+    newCount = current + 1
+    tx.set(docRef, { searchCount: newCount, monthKey: month }, { merge: true })
+  })
+
+  return newCount
+}
 
 /**
  * Queries the PostGIS `establishments` table for all rows whose `geom`
@@ -125,11 +167,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid geometry' }, { status: 400 })
     }
 
+    // Server-side enforcement for authenticated users.
+    // Anonymous users are not checked here — the client enforces limits locally.
+    let searchCountAfter: number | null = null
+    const token = req.headers.get('authorization')?.replace('Bearer ', '')
+    if (token) {
+      try {
+        searchCountAfter = await enforceAndIncrementSearchCount(token)
+      } catch (err: any) {
+        if (err.code === 'monthly_limit_reached') {
+          return NextResponse.json(
+            { error: 'monthly_limit_reached', searchesPerMonth: TIER_LIMITS.free.searchesPerMonth },
+            { status: 429 }
+          )
+        }
+        // Token verification failed or other transient error — proceed without enforcement.
+        console.warn('[search] Server-side enforcement skipped:', err.message)
+      }
+    }
+
     if (isDbConfigured()) {
       try {
         const { companies, columns, truncated } = await searchWithPostGIS(geometry, limit)
         console.log(`[postgis] Found ${companies.length} establishments${truncated ? ' (truncated)' : ''} (limit: ${limit}).`)
-        return NextResponse.json({ companies, columns, sampleData: false, truncated, resultLimit: limit })
+        return NextResponse.json({ companies, columns, sampleData: false, truncated, resultLimit: limit, searchCountAfter })
       } catch (dbError) {
         console.error('[db] Search failed, falling back to CSV:', dbError)
         const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
@@ -139,7 +200,7 @@ export async function POST(req: NextRequest) {
         const truncated = matched.length > limit
         const companies = truncated ? matched.slice(0, limit) : matched
         console.log(`[csv] Found ${matched.length} establishments, returning ${companies.length} (limit: ${limit}).`)
-        return NextResponse.json({ companies, columns, sampleData: true, truncated })
+        return NextResponse.json({ companies, columns, sampleData: true, truncated, searchCountAfter })
       }
     }
 
@@ -150,7 +211,7 @@ export async function POST(req: NextRequest) {
     const truncated = matched.length > limit
     const companies = truncated ? matched.slice(0, limit) : matched
     console.log(`[csv] Found ${matched.length} establishments, returning ${companies.length} (limit: ${limit}).`)
-    return NextResponse.json({ companies, columns, sampleData: true, truncated })
+    return NextResponse.json({ companies, columns, sampleData: true, truncated, searchCountAfter })
   } catch (error) {
     console.error('Search API error:', error)
     return NextResponse.json({ error: 'Search failed', details: String(error) }, { status: 500 })

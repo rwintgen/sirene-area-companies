@@ -204,7 +204,10 @@ export default function Paywall({ isDark, featureName, onClose }: Props) {
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div className="min-w-0 flex-1 pr-4">
             <h2 className={`text-lg font-semibold leading-tight ${t.title}`}>
-              Unlock <span className={isDark ? 'text-white' : 'text-violet-600'}>{featureName}</span>
+              {featureName === 'plan'
+                ? <span className={isDark ? 'text-white' : 'text-violet-600'}>Choose your plan</span>
+                : <>Unlock <span className={isDark ? 'text-white' : 'text-violet-600'}>{featureName}</span></>
+              }
             </h2>
             <p className={`text-xs mt-1.5 leading-relaxed max-w-md ${t.subtitle}`}>
               Choose a plan that works for you. Upgrade, downgrade, or cancel anytime.

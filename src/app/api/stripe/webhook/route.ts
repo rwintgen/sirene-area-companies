@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { stripe, tierFromPriceId } from '@/lib/stripe'
+import { getAdminDb } from '@/lib/firebase-admin'
+import type Stripe from 'stripe'
+
+/**
+ * POST: Stripe webhook handler.
+ *
+ * Verifies the Stripe signature, then updates the user's tier in Firestore based on
+ * subscription lifecycle events. This is the single source of truth for paid tiers.
+ */
+export async function POST(req: NextRequest) {
+  const body = await req.text()
+  const sig = req.headers.get('stripe-signature')
+
+  if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: 'Missing signature or webhook secret' }, { status: 400 })
+  }
+
+  let event: Stripe.Event
+  try {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
+  } catch (err: any) {
+    console.error('[stripe-webhook] Signature verification failed:', err.message)
+    return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
+  }
+
+  const db = getAdminDb()
+
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session
+      const uid = session.metadata?.firebaseUid
+      if (!uid || session.mode !== 'subscription') break
+
+      const subscriptionId = typeof session.subscription === 'string'
+        ? session.subscription
+        : session.subscription?.id
+
+      if (subscriptionId) {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId)
+        const priceId = sub.items.data[0]?.price.id
+        const tier = tierFromPriceId(priceId ?? '') ?? 'free'
+
+        await db.collection('userProfiles').doc(uid).set({
+          tier,
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: subscriptionId,
+          subscriptionStatus: sub.status,
+        }, { merge: true })
+
+        console.log(`[stripe-webhook] checkout.session.completed → uid=${uid} tier=${tier}`)
+      }
+      break
+    }
+
+    case 'customer.subscription.updated': {
+      const sub = event.data.object as Stripe.Subscription
+      const uid = sub.metadata?.firebaseUid ?? await uidFromCustomer(db, sub.customer as string)
+      if (!uid) break
+
+      const priceId = sub.items.data[0]?.price.id
+      const tier = tierFromPriceId(priceId ?? '') ?? 'free'
+
+      await db.collection('userProfiles').doc(uid).set({
+        tier,
+        subscriptionStatus: sub.status,
+      }, { merge: true })
+
+      console.log(`[stripe-webhook] subscription.updated → uid=${uid} tier=${tier} status=${sub.status}`)
+      break
+    }
+
+    case 'customer.subscription.deleted': {
+      const sub = event.data.object as Stripe.Subscription
+      const uid = sub.metadata?.firebaseUid ?? await uidFromCustomer(db, sub.customer as string)
+      if (!uid) break
+
+      await db.collection('userProfiles').doc(uid).set({
+        tier: 'free',
+        subscriptionStatus: 'canceled',
+      }, { merge: true })
+
+      console.log(`[stripe-webhook] subscription.deleted → uid=${uid} downgraded to free`)
+      break
+    }
+  }
+
+  return NextResponse.json({ received: true })
+}
+
+/** Looks up a Firebase UID from a Stripe customer ID stored in userProfiles. */
+async function uidFromCustomer(db: FirebaseFirestore.Firestore, customerId: string): Promise<string | null> {
+  const snap = await db.collection('userProfiles')
+    .where('stripeCustomerId', '==', customerId)
+    .limit(1)
+    .get()
+  return snap.empty ? null : snap.docs[0].id
+}

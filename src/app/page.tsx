@@ -62,7 +62,7 @@ export default function Home() {
   const [prefsSaved, setPrefsSaved] = useState(false)
   const [savedSearchCount, setSavedSearchCount] = useState(0)
   const [searchCount, setSearchCount] = useState(0)
-  const [userTier] = useState<UserTier>('free')
+  const [userTier, setUserTier] = useState<UserTier>('free')
 
   const prefsKey = (uid: string) => `prefs_${uid}`
 
@@ -99,12 +99,12 @@ export default function Home() {
         .then((data) => {
           if (data && typeof data.searchCount === 'number') {
             setSearchCount(data.searchCount)
-            // Seed local cache so the client-side display stays accurate
             const uKey2 = getUserKey(user.uid)
             try {
               localStorage.setItem(`pdm_usage_${uKey2}`, JSON.stringify({ searchCount: data.searchCount, monthKey: data.monthKey }))
             } catch {}
           }
+          if (data?.tier) setUserTier(data.tier as UserTier)
         })
         .catch(() => {})
     ).catch(() => {})
@@ -606,7 +606,7 @@ export default function Home() {
                           </button>
                         </div>
                       </div>
-
+                    </div>
 
                     <div className={`border-t ${d.tabBorder}`}>
                       <div className="px-3 py-2.5 space-y-2">
@@ -618,7 +618,15 @@ export default function Home() {
                           isLoggedIn={!!user}
                         />
                         <button
-                          onClick={() => { setPaywallFeature('plan'); setProfileOpen(false) }}
+                          onClick={() => {
+                            if (userTier !== 'free') {
+                              handleManagePlan()
+                              setProfileOpen(false)
+                            } else {
+                              setPaywallFeature('plan')
+                              setProfileOpen(false)
+                            }
+                          }}
                           className={`w-full text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${
                             isDark
                               ? 'border-white/10 text-gray-300 hover:bg-white/5 hover:border-white/20'
@@ -771,6 +779,8 @@ export default function Home() {
         isDark={isDark}
         featureName={paywallFeature}
         onClose={() => setPaywallFeature(null)}
+        currentTier={userTier}
+        onCheckout={handleCheckout}
       />
     )}
 

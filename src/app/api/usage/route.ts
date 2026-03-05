@@ -7,10 +7,8 @@ function getMonthKey(): string {
 }
 
 /**
- * GET: returns the current monthly search count for an authenticated user.
- * The client calls this on login to seed the localStorage cache with the
- * authoritative Firestore value, ensuring the display is accurate even
- * if the user clears their local storage on another device.
+ * GET: returns the current monthly search count and subscription tier for an authenticated user.
+ * The client calls this on login to seed the local state with authoritative Firestore values.
  */
 export async function GET(req: NextRequest) {
   const token = req.headers.get('authorization')?.replace('Bearer ', '')
@@ -21,14 +19,19 @@ export async function GET(req: NextRequest) {
     const uid = decoded.uid
     const month = getMonthKey()
 
-    const snap = await getAdminDb().collection('userUsage').doc(uid).get()
+    const [usageSnap, profileSnap] = await Promise.all([
+      getAdminDb().collection('userUsage').doc(uid).get(),
+      getAdminDb().collection('userProfiles').doc(uid).get(),
+    ])
 
-    if (!snap.exists) return NextResponse.json({ searchCount: 0, monthKey: month })
+    const usageData = usageSnap.exists ? usageSnap.data()! : {}
+    const searchCount = usageData.monthKey === month ? (usageData.searchCount ?? 0) : 0
 
-    const data = snap.data()!
-    const searchCount = data.monthKey === month ? (data.searchCount ?? 0) : 0
+    const profileData = profileSnap.exists ? profileSnap.data()! : {}
+    const tier = profileData.tier ?? 'free'
+    const subscriptionStatus = profileData.subscriptionStatus ?? null
 
-    return NextResponse.json({ searchCount, monthKey: month })
+    return NextResponse.json({ searchCount, monthKey: month, tier, subscriptionStatus })
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

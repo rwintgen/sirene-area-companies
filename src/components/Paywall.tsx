@@ -6,13 +6,16 @@ interface Props {
   isDark: boolean
   featureName: string
   onClose: () => void
+  onCheckout?: (planId: string, billing: 'monthly' | 'yearly') => void
+  onManagePlan?: () => void
+  currentTier?: string
 }
 
 /**
  * Premium feature paywall overlay with four plan tiers (Free → Pay-as-you-go → Individual → Enterprise).
  * Highlights the Individual plan as recommended. Animates in/out with scale + opacity.
  */
-export default function Paywall({ isDark, featureName, onClose }: Props) {
+export default function Paywall({ isDark, featureName, onClose, onCheckout, currentTier }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
@@ -329,12 +332,19 @@ export default function Paywall({ isDark, featureName, onClose }: Props) {
               </ul>
 
               <button
-                disabled={plan.isFree}
+                disabled={plan.isFree || plan.id === currentTier}
+                onClick={() => {
+                  if (onCheckout && !plan.isFree && plan.id !== currentTier) {
+                    onCheckout(plan.id, billing)
+                  }
+                }}
                 className={`w-full rounded-lg py-2 text-xs font-semibold transition-all border ${
-                  plan.isFree ? t.freeBtn + ' cursor-default' : plan.popular ? t.primaryBtn : t.secondaryBtn
+                  plan.id === currentTier
+                    ? t.freeBtn + ' cursor-default'
+                    : plan.isFree ? t.freeBtn + ' cursor-default' : plan.popular ? t.primaryBtn : t.secondaryBtn
                 }`}
               >
-                {plan.cta}
+                {plan.id === currentTier ? 'Current plan' : plan.cta}
               </button>
             </div>
           ))}

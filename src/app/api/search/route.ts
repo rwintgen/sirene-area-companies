@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isDbConfigured, getPool } from '@/lib/db'
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
-import { TIER_LIMITS } from '@/lib/usage'
+import { TIER_LIMITS, type UserTier } from '@/lib/usage'
 
 import fs from 'fs'
 import path from 'path'
@@ -71,10 +71,12 @@ async function enforceAndIncrementSearchCount(token: string): Promise<number> {
   const decoded = await getAdminAuth().verifyIdToken(token)
   const uid = decoded.uid
   const month = getMonthKey()
-  const docRef = getAdminDb().collection('userUsage').doc(uid)
 
-  // Hard-coded to free tier limit until payment tiers are stored server-side.
-  const limit = TIER_LIMITS.free.searchesPerMonth
+  const profileSnap = await getAdminDb().collection('userProfiles').doc(uid).get()
+  const tier: UserTier = profileSnap.exists ? (profileSnap.data()?.tier ?? 'free') : 'free'
+
+  const docRef = getAdminDb().collection('userUsage').doc(uid)
+  const limit = TIER_LIMITS[tier].searchesPerMonth
 
   let newCount = 0
   await getAdminDb().runTransaction(async (tx) => {

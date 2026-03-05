@@ -102,7 +102,26 @@ We welcome contributions of all kinds — open an issue or submit a pull request
       }
       ```
 
-4. **Set up the data source:**
+4. **Set up Stripe** *(optional — required for paid tiers)*:
+
+   1. Create a free account at [dashboard.stripe.com](https://dashboard.stripe.com).
+   2. In **Products**, create two products: **Individual** and **Enterprise**. For each, add two prices (monthly + yearly recurring).
+   3. Copy the **price IDs** (they start with `price_...`, not `prod_...`) into `.env.local`:
+      ```
+      STRIPE_SECRET_KEY=sk_test_...
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+      STRIPE_WEBHOOK_SECRET=whsec_...
+      STRIPE_PRICE_INDIVIDUAL_MONTHLY=price_...
+      STRIPE_PRICE_INDIVIDUAL_YEARLY=price_...
+      STRIPE_PRICE_ENTERPRISE_MONTHLY=price_...
+      STRIPE_PRICE_ENTERPRISE_YEARLY=price_...
+      ```
+   4. In **Developers → Webhooks**, add a destination pointing to `https://your-domain/api/stripe/webhook`.
+      - Account: **Your account**
+      - Events to listen for: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+      - Copy the **signing secret** (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
+
+5. **Set up the data source:**
 
    **Option A — Sample CSV (quickstart, no database needed):**
 

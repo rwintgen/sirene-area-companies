@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { CloseButton } from '@/components/ui'
+import { useState } from 'react'
+import { Modal, CloseButton } from '@/components/ui'
 
 interface Props {
   company: any
@@ -17,29 +17,11 @@ interface Props {
  */
 export default function CompanyDetail({ company, displayColumns, isDark, onClose, onAskAI }: Props) {
   const [aiLoading, setAiLoading] = useState(false)
-  const [visible, setVisible] = useState(false)
-  const overlayRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    requestAnimationFrame(() => setVisible(true))
-  }, [])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [])
-
-  const handleClose = () => {
-    setVisible(false)
-    setTimeout(onClose, 200)
-  }
 
   const fields = company.fields ?? {}
 
   const t = isDark
     ? {
-        overlay: 'bg-black/50',
         bg: 'bg-gray-900 border-white/10',
         title: 'text-white',
         closeBtn: 'text-gray-600 hover:text-gray-300',
@@ -52,7 +34,6 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
         aiIcon: 'text-gray-400',
       }
     : {
-        overlay: 'bg-black/30',
         bg: 'bg-white border-gray-200',
         title: 'text-gray-900',
         closeBtn: 'text-gray-400 hover:text-gray-700',
@@ -66,13 +47,8 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
       }
 
   return (
-    <div
-      ref={overlayRef}
-      className={`fixed inset-0 z-[8000] flex items-center justify-center backdrop-blur-sm transition-opacity duration-200 ${t.overlay} ${visible ? 'opacity-100' : 'opacity-0'}`}
-      onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
-    >
-      <div className={`relative w-[440px] max-h-[80vh] flex flex-col rounded-2xl border shadow-2xl transition-all duration-200 ${t.bg} ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-        {/* Header */}
+    <Modal isDark={isDark} onClose={onClose} zIndex="z-[8000]" className={`relative w-[440px] max-h-[80vh] flex flex-col ${t.bg}`}>
+      {(handleClose) => (<>
         <div className="flex items-start justify-between px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1 pr-4">
             <h2 className={`text-base font-semibold leading-tight ${t.title}`}>
@@ -119,7 +95,7 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
             Ask AI about this company
           </button>
         </div>
-      </div>
-    </div>
+      </>)}
+    </Modal>
   )
 }

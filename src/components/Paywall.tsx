@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { CloseButton } from '@/components/ui'
+import { useState } from 'react'
+import { Modal, CloseButton } from '@/components/ui'
 
 interface Props {
   isDark: boolean
@@ -20,8 +20,6 @@ interface Props {
  * Highlights the Individual plan as recommended. Animates in/out with scale + opacity.
  */
 export default function Paywall({ isDark, featureName, onClose, onCheckout, onRedeemCode, onRevertDiscount, discountInfo, currentTier }: Props) {
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
   const [discountOpen, setDiscountOpen] = useState(false)
   const [discountCode, setDiscountCode] = useState('')
@@ -29,24 +27,8 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
   const [discountError, setDiscountError] = useState('')
   const [discountSuccess, setDiscountSuccess] = useState(false)
 
-  useEffect(() => {
-    requestAnimationFrame(() => setVisible(true))
-  }, [])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [])
-
-  const handleClose = () => {
-    setVisible(false)
-    setTimeout(onClose, 200)
-  }
-
   const t = isDark
     ? {
-        overlay: 'bg-black/50',
         bg: 'bg-gray-900 border-white/10',
         title: 'text-white',
         subtitle: 'text-gray-400',
@@ -75,7 +57,6 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         seatNote: 'text-gray-600',
       }
     : {
-        overlay: 'bg-black/30',
         bg: 'bg-white border-gray-200',
         title: 'text-gray-900',
         subtitle: 'text-gray-500',
@@ -144,6 +125,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         { text: '5,000 results per query', included: true },
         { text: '5 saved searches', included: true },
         { text: 'CSV & JSON export', included: true },
+        { text: 'Custom labels', included: false },
         { text: 'AI company overviews', included: false },
       ],
     },
@@ -160,10 +142,11 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       isFree: false,
       disabled: true,
       features: [
-        { text: 'Unlimited searches', included: true },
+        { text: 'Everything in Free plan', included: true },
+        { text: 'Unlimited searches (pay-per-use)', included: true },
         { text: '10,000 results per query', included: true },
         { text: '20 saved searches', included: true },
-        { text: 'CSV & JSON export', included: true },
+        { text: 'Custom labels', included: true },
         { text: 'AI overviews (pay-per-use)', included: true },
       ],
     },
@@ -179,6 +162,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       popular: true,
       isFree: false,
       features: [
+        { text: 'Everything in Pay as you go plan', included: true },
         { text: '100 searches / month', included: true },
         { text: '50,000 results per query', included: true },
         { text: 'Unlimited saved searches', included: true },
@@ -198,23 +182,19 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       popular: false,
       isFree: false,
       features: [
+        { text: 'Everything in Individual plan', included: true },
         { text: 'Unlimited searches', included: true },
         { text: 'Custom result limits', included: true },
-        { text: 'Unlimited saved searches', included: true },
-        { text: 'All export formats', included: true },
         { text: 'Unlimited AI overviews', included: true },
+        { text: 'Plug in your data', included: true },
+        { text: 'Connect your enterprise software', included: true },
       ],
     },
   ]
 
   return (
-    <div
-      ref={overlayRef}
-      className={`fixed inset-0 z-[9500] flex items-center justify-center backdrop-blur-sm transition-opacity duration-200 ${t.overlay} ${visible ? 'opacity-100' : 'opacity-0'}`}
-      onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
-    >
-      <div className={`w-[880px] max-h-[90vh] overflow-y-auto rounded-2xl border shadow-2xl transition-all duration-200 ${t.bg} ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-        {/* Header */}
+    <Modal isDark={isDark} onClose={onClose} zIndex="z-[9500]" className={`w-[880px] max-h-[90vh] overflow-y-auto ${t.bg}`}>
+      {(handleClose) => (<>
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div className="min-w-0 flex-1 pr-4">
             <h2 className={`text-lg font-semibold leading-tight ${t.title}`}>
@@ -460,7 +440,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
             Public Data Maps is an open-source project committed to giving everyone free access to public data. We're not looking to make a profit — only resource-intensive features are behind a paywall to cover infrastructure costs.
           </p>
         </div>
-      </div>
-    </div>
+      </>)}
+    </Modal>
   )
 }

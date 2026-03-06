@@ -1,5 +1,54 @@
 'use client'
 
+import { useState, useEffect, useRef, useCallback } from 'react'
+
+/**
+ * Animated modal overlay with enter/exit scale + opacity transitions.
+ * Handles: backdrop click to dismiss, Escape key, 200ms animated close.
+ * Children receive `handleClose` to trigger the animated exit from within.
+ */
+export function Modal({ isDark, onClose, zIndex, children, className = '' }: {
+  isDark: boolean
+  onClose: () => void
+  zIndex: string
+  children: (handleClose: () => void) => React.ReactNode
+  className?: string
+}) {
+  const [visible, setVisible] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true))
+  }, [])
+
+  const handleClose = useCallback(() => {
+    setVisible(false)
+    setTimeout(onClose, 200)
+  }, [onClose])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [handleClose])
+
+  return (
+    <div
+      ref={overlayRef}
+      className={`fixed inset-0 ${zIndex} flex items-center justify-center backdrop-blur-sm transition-opacity duration-200 ${
+        isDark ? 'bg-black/50' : 'bg-black/30'
+      } ${visible ? 'opacity-100' : 'opacity-0'}`}
+      onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
+    >
+      <div className={`rounded-2xl border shadow-2xl transition-all duration-200 ${
+        visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+      } ${className}`}>
+        {children(handleClose)}
+      </div>
+    </div>
+  )
+}
+
 /**
  * Standard close button used in all modals and overlays.
  * `w-7 h-7 rounded-lg` container with a `w-4 h-4` X icon.

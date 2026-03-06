@@ -10,7 +10,7 @@ import CompanyDetail from '@/components/CompanyDetail'
 import ExportModal from '@/components/ExportModal'
 import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
-import { CloseButton } from '@/components/ui'
+import { Modal, CloseButton } from '@/components/ui'
 import UsageTracker from '@/components/UsageTracker'
 import { applyPresets } from '@/lib/presets'
 import {
@@ -992,14 +992,11 @@ export default function Home() {
     )}
 
     {revertConfirmOpen && (
-      <div
-        className={`fixed inset-0 z-[9600] flex items-center justify-center backdrop-blur-sm ${isDark ? 'bg-black/50' : 'bg-black/30'}`}
-        onMouseDown={(e) => { if (e.target === e.currentTarget) setRevertConfirmOpen(false) }}
-      >
-        <div className={`w-[360px] rounded-2xl border shadow-2xl p-6 ${isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'}`}>
+      <Modal isDark={isDark} onClose={() => setRevertConfirmOpen(false)} zIndex="z-[9600]" className={`w-[360px] p-6 ${isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'}`}>
+        {(handleClose) => (<>
           <div className="flex items-center justify-between mb-4">
             <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Revert to free plan?</h3>
-            <CloseButton onClick={() => setRevertConfirmOpen(false)} isDark={isDark} />
+            <CloseButton onClick={handleClose} isDark={isDark} />
           </div>
           <div className={`text-xs leading-relaxed space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             <p>This action is <strong className={isDark ? 'text-white' : 'text-gray-900'}>definitive</strong>. Your discount code will be marked as used and <strong className={isDark ? 'text-white' : 'text-gray-900'}>cannot be redeemed again</strong>.</p>
@@ -1007,7 +1004,7 @@ export default function Home() {
           </div>
           <div className="flex gap-2 mt-5">
             <button
-              onClick={() => setRevertConfirmOpen(false)}
+              onClick={() => handleClose()}
               className={`flex-1 text-xs font-medium py-2 rounded-lg border transition-colors ${
                 isDark
                   ? 'border-white/10 text-gray-300 hover:bg-white/5'
@@ -1027,15 +1024,11 @@ export default function Home() {
               Revert to free
             </button>
           </div>
-        </div>
-      </div>
+        </>)}
+      </Modal>
     )}
 
     {fieldsModalTab && (
-      <div
-        className={`fixed inset-0 z-[9000] flex items-center justify-center backdrop-blur-sm ${isDark ? 'bg-black/50' : 'bg-black/30'}`}
-        onMouseDown={(e) => { if (e.target === e.currentTarget) setFieldsModalTab(null) }}
-      >
         <ColumnConfig
           columns={displayColumns}
           listColumns={listColumns}
@@ -1046,7 +1039,6 @@ export default function Home() {
           initialTab={fieldsModalTab}
           onClose={() => setFieldsModalTab(null)}
         />
-      </div>
     )}
     </>
   )

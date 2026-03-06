@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { CloseButton, Checkbox } from '@/components/ui'
+import { useState } from 'react'
+import { Modal, CloseButton, Checkbox } from '@/components/ui'
 
 interface Props {
   companies: any[]
@@ -17,13 +17,6 @@ interface Props {
 export default function ExportModal({ companies, displayColumns, isDark, onClose }: Props) {
   const [selectedCols, setSelectedCols] = useState<string[]>([...displayColumns])
   const [format, setFormat] = useState<'csv' | 'json'>('csv')
-  const overlayRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
 
   const toggleCol = (col: string) => {
     setSelectedCols((prev) =>
@@ -74,7 +67,6 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
 
   const t = isDark
     ? {
-        overlay: 'bg-black/50',
         modal: 'bg-gray-900 border-white/10',
         title: 'text-white',
         subtitle: 'text-gray-500',
@@ -90,7 +82,6 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
         divider: 'border-white/5',
       }
     : {
-        overlay: 'bg-black/30',
         modal: 'bg-white border-gray-200',
         title: 'text-gray-900',
         subtitle: 'text-gray-400',
@@ -107,19 +98,14 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
       }
 
   return (
-    <div
-      ref={overlayRef}
-      className={`fixed inset-0 z-[9000] flex items-center justify-center backdrop-blur-sm ${t.overlay}`}
-      onMouseDown={(e) => { if (e.target === overlayRef.current) onClose() }}
-    >
-      <div className={`relative w-[400px] max-h-[80vh] flex flex-col rounded-2xl border shadow-2xl ${t.modal}`}>
-        {/* Header */}
+    <Modal isDark={isDark} onClose={onClose} zIndex="z-[9000]" className={`relative w-[400px] max-h-[80vh] flex flex-col ${t.modal}`}>
+      {(handleClose) => (<>
         <div className="flex items-start justify-between px-5 pt-5 pb-3">
           <div>
             <h2 className={`text-base font-semibold ${t.title}`}>Export Results</h2>
             <p className={`text-xs mt-0.5 ${t.subtitle}`}>{companies.length} companies</p>
           </div>
-          <CloseButton onClick={onClose} isDark={isDark} />
+            <CloseButton onClick={handleClose} isDark={isDark} />
         </div>
 
         {/* Format selection */}
@@ -176,7 +162,7 @@ export default function ExportModal({ companies, displayColumns, isDark, onClose
             Export {format.toUpperCase()} ({selectedCols.length} field{selectedCols.length !== 1 ? 's' : ''})
           </button>
         </div>
-      </div>
-    </div>
+      </>)}
+    </Modal>
   )
 }

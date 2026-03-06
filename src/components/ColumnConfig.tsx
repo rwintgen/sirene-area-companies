@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CloseButton, Checkbox } from '@/components/ui'
+import { Modal, CloseButton, Checkbox } from '@/components/ui'
 
 interface Props {
   columns: string[]
@@ -69,11 +69,11 @@ export default function ColumnConfig({
       }
 
   return (
-    <div className={`rounded-2xl border shadow-2xl overflow-hidden ${t.bg}`}>
-      {/* Header */}
+    <Modal isDark={isDark} onClose={onClose} zIndex="z-[9000]" className={`overflow-hidden ${t.bg}`}>
+      {(handleClose) => (<>
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <h3 className={`text-sm font-semibold ${t.title}`}>Visible Columns</h3>
-        <CloseButton onClick={onClose} isDark={isDark} />
+        <CloseButton onClick={handleClose} isDark={isDark} />
       </div>
 
       {/* Tabs */}
@@ -115,6 +115,7 @@ export default function ColumnConfig({
           )
         })}
       </div>
-    </div>
+      </>)}
+    </Modal>
   )
 }

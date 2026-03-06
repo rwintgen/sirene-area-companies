@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -9,7 +9,7 @@ import {
   updateProfile,
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
-import { CloseButton } from '@/components/ui'
+import { Modal, CloseButton } from '@/components/ui'
 
 interface Props {
   isDark: boolean
@@ -28,13 +28,6 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const overlayRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
 
   /** Maps Firebase Auth error codes to user-friendly messages. */
   const friendlyError = (code: string) => {
@@ -87,7 +80,6 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
 
   const t = isDark
     ? {
-        overlay: 'bg-black/50',
         modal: 'bg-gray-900 border-white/10',
         title: 'text-white',
         tab: 'text-gray-500 hover:text-gray-300',
@@ -103,7 +95,6 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
         closeBtn: 'text-gray-600 hover:text-gray-300',
       }
     : {
-        overlay: 'bg-black/30',
         modal: 'bg-white border-gray-200',
         title: 'text-gray-900',
         tab: 'text-gray-400 hover:text-gray-700',
@@ -120,12 +111,9 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
       }
 
   return (
-    <div
-      ref={overlayRef}
-      className={`fixed inset-0 z-[9800] flex items-center justify-center backdrop-blur-sm ${t.overlay}`}
-      onMouseDown={(e) => { if (e.target === overlayRef.current) onClose() }}
-    >
-      <div className={`w-[360px] rounded-2xl border shadow-2xl p-6 ${t.modal}`}>
+    <Modal isDark={isDark} onClose={onClose} zIndex="z-[9800]" className={`w-[360px] p-6 ${t.modal}`}>
+      {(handleClose) => (
+        <>
         <div className={`flex items-center justify-between mb-5 border-b pb-0 ${t.tabBorder}`}>
           <div className="flex gap-4">
             {(['signin', 'signup'] as const).map((t_) => (
@@ -138,7 +126,7 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
               </button>
             ))}
           </div>
-          <CloseButton onClick={onClose} isDark={isDark} className="mb-2" />
+          <CloseButton onClick={handleClose} isDark={isDark} className="mb-2" />
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-3">
@@ -209,7 +197,8 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
           </svg>
           Continue with Google
         </button>
-      </div>
-    </div>
+        </>
+      )}
+    </Modal>
   )
 }

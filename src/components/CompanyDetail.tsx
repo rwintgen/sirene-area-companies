@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal, CloseButton } from '@/components/ui'
+import { Modal, CloseButton, Button } from '@/components/ui'
 
 interface Props {
   company: any
@@ -9,13 +9,15 @@ interface Props {
   isDark: boolean
   onClose: () => void
   onAskAI: (company: any) => void
+  onViewAI: (company: any) => void
+  hasCachedOverview: boolean
 }
 
 /**
  * Full-screen modal showing all JSONB fields for a single establishment.
  * Animates in/out with scale + opacity. Includes an AI inquiry button gated by paywall.
  */
-export default function CompanyDetail({ company, displayColumns, isDark, onClose, onAskAI }: Props) {
+export default function CompanyDetail({ company, displayColumns, isDark, onClose, onAskAI, onViewAI, hasCachedOverview }: Props) {
   const [aiLoading, setAiLoading] = useState(false)
 
   const fields = company.fields ?? {}
@@ -30,8 +32,6 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
         emptyValue: 'text-gray-700 italic',
         divider: 'border-white/5',
         coords: 'text-gray-600',
-        aiBtn: 'ai-shimmer-btn text-gray-200',
-        aiIcon: 'text-gray-400',
       }
     : {
         bg: 'bg-white border-gray-200',
@@ -42,8 +42,6 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
         emptyValue: 'text-gray-300 italic',
         divider: 'border-gray-100',
         coords: 'text-gray-400',
-        aiBtn: 'ai-shimmer-btn text-gray-700',
-        aiIcon: 'text-gray-400',
       }
 
   return (
@@ -82,18 +80,46 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
           </div>
         </div>
 
-        {/* AI button */}
+        {/* AI button(s) */}
         <div className={`px-5 py-4 border-t ${t.divider}`}>
-          <button
-            onClick={() => onAskAI(company)}
-            disabled={aiLoading}
-            className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-semibold transition-all ${t.aiBtn}`}
-          >
-            <svg className={`w-4 h-4 ${t.aiIcon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            Ask AI about this company
-          </button>
+          {hasCachedOverview ? (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => onViewAI(company)}
+                isDark={isDark}
+                className="flex-1 flex items-center justify-center gap-2 py-3"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                View AI Overview
+              </Button>
+              <Button
+                onClick={() => onAskAI(company)}
+                disabled={aiLoading}
+                isDark={isDark}
+                variant="secondary"
+                className="flex items-center justify-center gap-2 py-3 px-4"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Try again
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => onAskAI(company)}
+              disabled={aiLoading}
+              isDark={isDark}
+              className="w-full flex items-center justify-center gap-2.5 py-3"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              Ask AI about this company
+            </Button>
+          )}
         </div>
       </>)}
     </Modal>

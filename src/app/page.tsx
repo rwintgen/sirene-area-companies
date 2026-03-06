@@ -10,6 +10,7 @@ import CompanyDetail from '@/components/CompanyDetail'
 import ExportModal from '@/components/ExportModal'
 import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
+import AIOverview from '@/components/AIOverview'
 import { Modal, CloseButton } from '@/components/ui'
 import UsageTracker from '@/components/UsageTracker'
 import { applyPresets } from '@/lib/presets'
@@ -73,6 +74,10 @@ export default function Home() {
     try { return localStorage.getItem('pdm_usage_open') === '1' } catch { return false }
   })
   const [revertConfirmOpen, setRevertConfirmOpen] = useState(false)
+  const [aiCompany, setAICompany] = useState<any>(null)
+  const [aiToken, setAIToken] = useState('')
+  const [aiSavedOverview, setAISavedOverview] = useState<{ text: string; sources: string[] } | null>(null)
+  const [aiCacheMap, setAICacheMap] = useState<Record<string, boolean>>({})
   const [savedSearchCount, setSavedSearchCount] = useState(0)
   const [searchCount, setSearchCount] = useState(0)
   const [aiOverviewCount, setAIOverviewCount] = useState(0)
@@ -394,11 +399,24 @@ export default function Home() {
     } catch {}
   }, [user, deleteEmail])
 
-  const handleExpand = useCallback((company: any) => {
+  const handleExpand = useCallback(async (company: any) => {
     setExpandedCompany(company)
-  }, [])
+    const siret = company.fields?.SIRET || company.fields?.siret
+    if (siret && user && !(siret in aiCacheMap)) {
+      try {
+        const token = await user.getIdToken()
+        const res = await fetch(`/api/ai-overview?siret=${encodeURIComponent(siret)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setAICacheMap((prev) => ({ ...prev, [siret]: data.cached }))
+        }
+      } catch { /* non-critical */ }
+    }
+  }, [user, aiCacheMap])
 
-  const handleAskAI = useCallback((_company: any) => {
+  const handleAskAI = useCallback(async (_company: any) => {
     const uKey = getUserKey(user?.uid ?? null)
     if (!canUseAIOverview(uKey, userTier)) {
       const limit = TIER_LIMITS[userTier].aiOverviewsPerMonth
@@ -407,8 +425,33 @@ export default function Home() {
     }
     const newCount = incrementAIOverviewCount(uKey)
     setAIOverviewCount(newCount)
-    console.log('AI overview for:', _company)
+    const token = user ? await user.getIdToken() : ''
+    setAIToken(token)
+    setAISavedOverview(null)
+    setAICompany(_company)
   }, [userTier, user])
+
+  const handleViewAI = useCallback(async (_company: any) => {
+    if (!user) return
+    const siret = _company.fields?.SIRET || _company.fields?.siret
+    if (!siret) return
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch(`/api/ai-overview?siret=${encodeURIComponent(siret)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.cached) {
+          setAIToken(token)
+          setAISavedOverview({ text: data.text, sources: data.sources })
+          setAICompany(_company)
+          return
+        }
+      }
+    } catch { /* fall through to generate */ }
+    handleAskAI(_company)
+  }, [user, handleAskAI])
 
   /** Redirect the user to a Stripe Checkout session for the selected plan. */
   const handleCheckout = useCallback(async (planId: string, billing: 'monthly' | 'yearly') => {
@@ -966,6 +1009,18 @@ export default function Home() {
         isDark={isDark}
         onClose={() => setExpandedCompany(null)}
         onAskAI={handleAskAI}
+        onViewAI={handleViewAI}
+        hasCachedOverview={!!(expandedCompany.fields?.SIRET && aiCacheMap[expandedCompany.fields.SIRET])}
+      />
+    )}
+
+    {aiCompany && (
+      <AIOverview
+        company={aiCompany}
+        isDark={isDark}
+        onClose={() => { setAICompany(null); setAISavedOverview(null); const siret = aiCompany.fields?.SIRET; if (siret) setAICacheMap((prev) => ({ ...prev, [siret]: true })) }}
+        userToken={aiToken}
+        savedOverview={aiSavedOverview}
       />
     )}
 

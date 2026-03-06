@@ -20,6 +20,7 @@ A full-stack web app to draw a custom area on a map of France and instantly retr
 - **Collapsible sidebar** — toggle the sidebar to reveal a full-screen map; smooth CSS transition
 - **Geocoding** — search for any location in France (Nominatim) to pan the map
 - **Geolocate** — jump to your current GPS position
+- **AI company overview** — agent-style AI analysis of any establishment using Gemini with Google Search grounding, streamed in real time
 
 ## Tech Stack
 
@@ -32,6 +33,7 @@ A full-stack web app to draw a custom area on a map of France and instantly retr
 | User data   | Cloud Firestore (preferences, saved searches)           |
 | Geo queries | Cloud SQL (PostgreSQL 15) + PostGIS                     |
 | Fallback    | In-memory CSV with Turf.js point-in-polygon             |
+| AI          | Vertex AI (Gemini 2.0 Flash) + Google Search grounding    |
 | Hosting     | Firebase App Hosting                                    |
 
 ## Architecture
@@ -43,7 +45,8 @@ Browser ──▶ Next.js App (React + Leaflet)
                │                        └──▶ CSV fallback (Turf.js)
                │
                ├──▶ Firebase Auth
-               └──▶ Cloud Firestore (user prefs & saved searches)
+               ├──▶ Cloud Firestore (user prefs & saved searches)
+               └──▶ Vertex AI / Gemini (AI company overview)
 ```
 
 - **`/api/search` route** — accepts a GeoJSON geometry. When a PostGIS database is configured it runs a spatial `ST_Contains` query; otherwise it falls back to parsing the sample CSV in memory with Turf.js `booleanPointInPolygon`.
@@ -199,6 +202,146 @@ This app requires server-side rendering (Next.js API routes handle the search). 
    ```
 
 5. **Push to `main`** — Firebase builds and deploys automatically.
+
+### Enable AI Overview (Vertex AI + Google Search Grounding)
+
+The AI company overview feature uses **Vertex AI Gemini** with **Google Search grounding** to produce live, sourced intelligence about any company. This section walks through every step needed to get it running in production and locally.
+
+#### Prerequisites
+
+- A GCP project with billing enabled (Vertex AI is a paid API; Gemini Flash pricing is ~$0.075 / 1M input tokens).
+- The `gcloud` CLI installed and authenticated (`gcloud auth login`).
+- Your Firebase App Hosting backend already created (see the deployment section above).
+
+#### Step 1 — Enable the Vertex AI API
+
+```bash
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+
+# Enable Vertex AI (includes Gemini model access)
+gcloud services enable aiplatform.googleapis.com
+```
+
+This single API covers both the Gemini model family and the Google Search grounding tool — no separate "grounding API" needs to be enabled.
+
+#### Step 2 — Choose a region
+
+Vertex AI endpoints are regional. Pick the region closest to your users and your Cloud SQL instance:
+
+| Region | Location |
+|--------|----------|
+| `europe-west1` | Belgium (default) |
+| `europe-west4` | Netherlands |
+| `us-central1` | Iowa |
+| `asia-northeast1` | Tokyo |
+
+The full list is at [Vertex AI locations](https://cloud.google.com/vertex-ai/docs/general/locations). Set the chosen region as `GCP_LOCATION`.
+
+#### Step 3 — Set environment variables
+
+Add the following to `apphosting.yaml`:
+
+```yaml
+env:
+  - variable: GCP_PROJECT_ID
+    value: your-gcp-project-id
+  - variable: GCP_LOCATION
+    value: europe-west4          # must match Step 2
+  # Optional — defaults to gemini-2.0-flash
+  - variable: GEMINI_MODEL
+    value: gemini-2.0-flash
+```
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GCP_PROJECT_ID` | **Yes** | — | Your GCP project ID |
+| `GCP_LOCATION` | No | `europe-west1` | Vertex AI region |
+| `GEMINI_MODEL` | No | `gemini-2.0-flash` | Gemini model name |
+
+#### Step 4 — Grant IAM permissions to the App Hosting service account
+
+Firebase App Hosting runs your Next.js server under a dedicated service account. It needs the **Vertex AI User** role to call the Gemini API.
+
+```bash
+# 1. Find the service account email.
+#    It is shown during `firebase apphosting:backends:create`.
+#    The format is: firebase-app-hosting-compute@<PROJECT_ID>.iam.gserviceaccount.com
+
+SA="firebase-app-hosting-compute@YOUR_PROJECT_ID.iam.gserviceaccount.com"
+
+# 2. Grant the role
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:$SA" \
+  --role="roles/aiplatform.user"
+```
+
+If you use a custom service account, replace the email accordingly.
+
+#### Step 5 — Local development setup
+
+Locally, the Vertex AI SDK authenticates through **Application Default Credentials (ADC)**.
+
+```bash
+# 1. Log in with your personal Google account
+gcloud auth application-default login
+
+# 2. Set the quota project (so usage is billed to the right project)
+gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+```
+
+Then add to `.env.local`:
+
+```env
+GCP_PROJECT_ID=your-gcp-project-id
+# GCP_LOCATION=europe-west1   (optional, defaults to europe-west1)
+# GEMINI_MODEL=gemini-2.0-flash (optional)
+```
+
+Start the dev server with `npm run dev` and the AI overview button will be functional.
+
+#### Step 6 — Verify it works
+
+1. Open the app and draw an area to load companies.
+2. Click a company row → **Company detail modal** opens.
+3. Click the **AI Overview** button at the bottom.
+4. You should see the agent steps animate ("Analyzing…", "Searching…", "Generating…") and a streamed markdown report appear.
+
+If you get a 503 error, check that `GCP_PROJECT_ID` is set. If you get a permission error, double-check the IAM binding from Step 4.
+
+#### Step 7 — Monitor usage and costs
+
+Vertex AI usage appears in the GCP console under **Vertex AI → Overview → Usage**. You can also set budget alerts:
+
+```bash
+# View recent Gemini API calls
+gcloud logging read 'resource.type="aiplatform.googleapis.com/Endpoint"' \
+  --project=YOUR_PROJECT_ID --limit=20 --format=json
+```
+
+Gemini 2.0 Flash pricing (as of March 2026):
+- Input: ~$0.075 / 1M tokens
+- Output: ~$0.30 / 1M tokens
+- Google Search grounding: billed per grounded request (~$35 / 1K requests)
+
+Set up a [GCP budget alert](https://console.cloud.google.com/billing/budgets) to avoid surprises.
+
+#### How it works (architecture)
+
+```
+User clicks "AI Overview"
+  → Frontend streams from POST /api/ai-overview (SSE)
+    → Server verifies Firebase auth token
+    → Builds prompt from all 104 SIRENE fields + GPS coordinates
+    → Calls Vertex AI Gemini with Google Search grounding enabled
+    → Gemini autonomously decides whether to search Google
+    → Response is streamed back as Server-Sent Events
+      • step events  (agent progress indicators)
+      • chunk events (incremental markdown text)
+      • done event   (final text + list of search queries used)
+```
+
+The model receives the full SIRENE record and is instructed to search for: company website, Google Maps profile, leadership contacts, general contact info, recent news, and financial signals. Google Search grounding lets the model access live web data without a separate search API.
 
 ---
 

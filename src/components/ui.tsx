@@ -100,3 +100,80 @@ export function Checkbox({ checked, isDark }: {
     </div>
   )
 }
+
+/**
+ * Reusable button with themed variants.
+ * - primary: solid fill (violet light / white dark)
+ * - secondary: bordered, subtle hover
+ * - danger: red-tinted for destructive actions
+ * - ghost: no border, just text
+ */
+export function Button({ children, onClick, disabled, variant = 'primary', isDark, className = '', ...rest }: {
+  children: React.ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  isDark: boolean
+  className?: string
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className'>) {
+  const base = 'rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+  const variants: Record<string, string> = isDark
+    ? {
+        primary: 'bg-white text-gray-900 hover:bg-gray-200',
+        secondary: 'border border-white/10 text-gray-300 hover:border-white/20 hover:bg-white/5',
+        danger: 'border border-red-500/30 text-red-400 hover:bg-red-500/10',
+        ghost: 'text-gray-400 hover:text-gray-200 hover:bg-white/5',
+      }
+    : {
+        primary: 'bg-violet-600 text-white hover:bg-violet-700',
+        secondary: 'border border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+        danger: 'border border-red-200 text-red-600 hover:bg-red-50',
+        ghost: 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+      }
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${variants[variant]} ${className}`}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * Hoverable info icon (ⓘ) with a tooltip that appears on hover.
+ * Uses CSS `group-hover` for zero-JS tooltip display.
+ * The icon is a 3.5×3.5 SVG circle-i; the tooltip appears above by default.
+ */
+export function InfoTooltip({ text, children, isDark, position = 'top', width = 'w-56' }: {
+  text?: string
+  children?: React.ReactNode
+  isDark: boolean
+  position?: 'top' | 'bottom'
+  width?: string
+}) {
+  const iconClass = isDark
+    ? 'text-gray-600 hover:text-gray-400'
+    : 'text-gray-400 hover:text-gray-600'
+  const tooltipClass = isDark
+    ? 'bg-gray-800 border-white/10 text-gray-300'
+    : 'bg-white border-gray-200 text-gray-600 shadow-lg'
+  const pos = position === 'top'
+    ? 'bottom-full left-1/2 -translate-x-1/2 mb-2'
+    : 'top-full left-1/2 -translate-x-1/2 mt-2'
+
+  return (
+    <div className="relative group">
+      <svg className={`w-3.5 h-3.5 cursor-help transition-colors ${iconClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" strokeWidth={2} />
+        <path strokeLinecap="round" strokeWidth={2} d="M12 16v-4m0-4h.01" />
+      </svg>
+      <div className={`absolute ${pos} ${width} rounded-lg border px-3 py-2 text-[11px] leading-snug opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-10 ${tooltipClass}`}>
+        {children ?? text}
+      </div>
+    </div>
+  )
+}

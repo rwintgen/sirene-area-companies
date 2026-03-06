@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.9.1",
+    "@google-cloud/vertexai": "^1.10.0",
     "@stripe/stripe-js": "^8.9.0",
     "@turf/boolean-point-in-polygon": "^7.3.4",
     "@turf/helpers": "^7.3.4",

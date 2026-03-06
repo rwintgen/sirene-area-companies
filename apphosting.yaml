@@ -25,3 +25,13 @@ env:
     secret: DB_PASSWORD
     availability:
       - RUNTIME
+
+  - variable: GCP_PROJECT_ID
+    value: project-95adcfa2-64d3-4f79-be3
+    availability:
+      - RUNTIME
+
+  - variable: GCP_LOCATION
+    value: europe-west4
+    availability:
+      - RUNTIME

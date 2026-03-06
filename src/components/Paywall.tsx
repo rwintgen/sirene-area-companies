@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal, CloseButton } from '@/components/ui'
+import { Modal, CloseButton, InfoTooltip } from '@/components/ui'
 
 interface Props {
   isDark: boolean
@@ -51,8 +51,6 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         toggleInactive: 'text-gray-500',
         mission: 'text-gray-600',
         missionIcon: 'text-gray-600',
-        infoIcon: 'text-gray-600 hover:text-gray-400',
-        tooltip: 'bg-gray-800 border-white/10 text-gray-300',
         tooltipLabel: 'text-gray-500',
         seatNote: 'text-gray-600',
       }
@@ -79,8 +77,6 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         toggleInactive: 'text-gray-400',
         mission: 'text-gray-400',
         missionIcon: 'text-gray-300',
-        infoIcon: 'text-gray-400 hover:text-gray-600',
-        tooltip: 'bg-white border-gray-200 text-gray-600 shadow-lg',
         tooltipLabel: 'text-gray-400',
         seatNote: 'text-gray-400',
       }
@@ -310,25 +306,19 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
                   <div className="flex items-center gap-1.5">
                     <span className={`text-lg font-semibold ${t.cardPrice}`}>{plan.priceLine}</span>
                     {plan.id === 'payg' && (
-                      <div className="relative group">
-                        <svg className={`w-3.5 h-3.5 cursor-help transition-colors ${t.infoIcon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="10" strokeWidth={2} />
-                          <path strokeLinecap="round" strokeWidth={2} d="M12 16v-4m0-4h.01" />
-                        </svg>
-                        <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg border p-2.5 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-10 ${t.tooltip}`}>
-                          <p className={`text-[9px] font-semibold uppercase tracking-widest mb-1.5 ${t.tooltipLabel}`}>Pricing</p>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px]">
-                              <span>Per result</span>
-                              <span className="font-medium">$0.0001</span>
-                            </div>
-                            <div className="flex justify-between text-[10px]">
-                              <span>AI overview</span>
-                              <span className="font-medium">$0.005 / query</span>
-                            </div>
+                      <InfoTooltip isDark={isDark} position="top" width="w-44">
+                        <p className={`text-[9px] font-semibold uppercase tracking-widest mb-1.5 ${t.tooltipLabel}`}>Pricing</p>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px]">
+                            <span>Per result</span>
+                            <span className="font-medium">$0.0001</span>
+                          </div>
+                          <div className="flex justify-between text-[10px]">
+                            <span>AI overview</span>
+                            <span className="font-medium">$0.005 / query</span>
                           </div>
                         </div>
-                      </div>
+                      </InfoTooltip>
                     )}
                   </div>
                 )}

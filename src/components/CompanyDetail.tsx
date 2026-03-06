@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Modal, CloseButton, Button } from '@/components/ui'
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
  */
 export default function CompanyDetail({ company, displayColumns, isDark, onClose, onAskAI, onViewAI, hasCachedOverview }: Props) {
   const [aiLoading, setAiLoading] = useState(false)
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null)
 
   const fields = company.fields ?? {}
 
@@ -68,7 +70,11 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
               const val = fields[col] ?? ''
               return (
                 <div key={col} className="flex items-baseline gap-3 py-1.5">
-                  <span className={`text-[10px] font-medium uppercase tracking-wider flex-shrink-0 w-[140px] truncate ${t.label}`} title={col}>
+                  <span
+                    className={`text-[10px] font-medium uppercase tracking-wider flex-shrink-0 w-[200px] truncate cursor-default ${t.label}`}
+                    onMouseMove={(e) => setTooltip({ text: col, x: e.clientX + 12, y: e.clientY + 12 })}
+                    onMouseLeave={() => setTooltip(null)}
+                  >
                     {col}
                   </span>
                   <span className={`text-sm flex-1 min-w-0 break-words ${val ? t.value : t.emptyValue}`}>
@@ -121,6 +127,16 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
             </Button>
           )}
         </div>
+
+        {tooltip && createPortal(
+          <div
+            className="fixed z-[10000] px-2 py-1 rounded-md bg-gray-800 text-gray-100 text-[11px] font-medium whitespace-nowrap pointer-events-none shadow-lg"
+            style={{ left: tooltip.x, top: tooltip.y }}
+          >
+            {tooltip.text}
+          </div>,
+          document.body
+        )}
       </>)}
     </Modal>
   )

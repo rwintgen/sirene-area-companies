@@ -19,9 +19,11 @@ export async function GET(req: NextRequest) {
     const uid = decoded.uid
     const month = getMonthKey()
 
-    const [usageSnap, profileSnap] = await Promise.all([
-      getAdminDb().collection('userUsage').doc(uid).get(),
-      getAdminDb().collection('userProfiles').doc(uid).get(),
+    const adminDb = getAdminDb()
+    const [usageSnap, profileSnap, aiOverviewsSnap] = await Promise.all([
+      adminDb.collection('userUsage').doc(uid).get(),
+      adminDb.collection('userProfiles').doc(uid).get(),
+      adminDb.collection('userProfiles').doc(uid).collection('aiOverviews').orderBy('createdAt', 'desc').limit(50).get(),
     ])
 
     const usageData = usageSnap.exists ? usageSnap.data()! : {}
@@ -46,7 +48,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ searchCount, aiOverviewCount, monthKey: month, tier: effectiveTier, subscriptionStatus, discount })
+    const aiOverviews = aiOverviewsSnap.docs.map((doc) => {
+      const d = doc.data()
+      return { siret: doc.id, companyName: d.companyName || doc.id, city: d.city || '', createdAt: d.createdAt || '' }
+    })
+
+    return NextResponse.json({ searchCount, aiOverviewCount, monthKey: month, tier: effectiveTier, subscriptionStatus, discount, aiOverviews })
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

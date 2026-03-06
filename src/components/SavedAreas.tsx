@@ -23,15 +23,21 @@ export default function SavedAreas({
   onCountChange,
   activeSearchId,
   isDark,
+  isOpen: controlledOpen,
+  onToggle,
 }: {
   onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string) => void
   onDeleteCurrentSearch: () => void
   onCountChange?: (count: number) => void
   activeSearchId: string | null
   isDark: boolean
+  isOpen?: boolean
+  onToggle?: () => void
 }) {
   const [savedAreas, setSavedAreas] = useState<any[]>([])
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isOpen = controlledOpen ?? internalOpen
+  const toggleOpen = onToggle ?? (() => setInternalOpen((v) => !v))
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -87,7 +93,7 @@ export default function SavedAreas({
     <div>
       <div className="flex items-center justify-between py-1">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleOpen}
           className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${t.label}`}
         >
           <span>Saved Searches</span>

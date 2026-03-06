@@ -6,6 +6,11 @@ const PROJECT_ID = process.env.GCP_PROJECT_ID ?? ''
 const LOCATION = process.env.GCP_LOCATION ?? 'europe-west1'
 const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
 
+function getMonthKey(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 function getVertex() {
   return new VertexAI({ project: PROJECT_ID, location: LOCATION })
 }
@@ -131,9 +136,11 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
 
+  let uid = ''
   try {
     const token = authHeader.slice(7)
-    await getAdminAuth().verifyIdToken(token)
+    const decoded = await getAdminAuth().verifyIdToken(token)
+    uid = decoded.uid
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 })
   }
@@ -200,11 +207,31 @@ export async function POST(req: NextRequest) {
 
         if (siret && fullText) {
           try {
-            await getAdminDb().collection('aiOverviews').doc(siret).set({
+            const now = new Date().toISOString()
+            const adminDb = getAdminDb()
+            await adminDb.collection('aiOverviews').doc(siret).set({
               text: fullText,
               sources,
-              createdAt: new Date().toISOString(),
+              createdAt: now,
             })
+            if (uid) {
+              const companyName = fields['Dénomination de l\'unité légale'] || fields.denominationUniteLegale || ''
+              const city = fields['Commune de l\'établissement'] || fields.communeEtablissement || ''
+              await adminDb.collection('userProfiles').doc(uid).collection('aiOverviews').doc(siret).set({
+                companyName,
+                city,
+                siret,
+                createdAt: now,
+              })
+              const month = getMonthKey()
+              const usageRef = adminDb.collection('userUsage').doc(uid)
+              await adminDb.runTransaction(async (tx) => {
+                const snap = await tx.get(usageRef)
+                const data = snap.exists ? snap.data()! : {}
+                const count = data.monthKey === month ? (data.aiOverviewCount ?? 0) : 0
+                tx.set(usageRef, { aiOverviewCount: count + 1, monthKey: month }, { merge: true })
+              })
+            }
           } catch { /* non-critical — overview still delivered to user */ }
         }
       } catch (err: unknown) {

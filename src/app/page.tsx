@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import CompanyList from '@/components/CompanyList'
-import SavedAreas from '@/components/SavedAreas'
 import SearchBar from '@/components/SearchBar'
 import AuthModal from '@/components/AuthModal'
 import CompanyDetail from '@/components/CompanyDetail'
@@ -11,8 +10,8 @@ import ExportModal from '@/components/ExportModal'
 import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
 import AIOverview from '@/components/AIOverview'
+import SettingsModal from '@/components/SettingsModal'
 import { Modal, CloseButton } from '@/components/ui'
-import UsageTracker from '@/components/UsageTracker'
 import { applyPresets } from '@/lib/presets'
 import {
   type UserTier,
@@ -59,17 +58,11 @@ export default function Home() {
   const [paywallFeature, setPaywallFeature] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [searchExpanded, setSearchExpanded] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const profileRef = useRef<HTMLDivElement>(null)
   const isSigningIn = useRef(false)
   const profileLoaded = useRef(false)
   const searchAbort = useRef<AbortController | null>(null)
   const [prefsSaved, setPrefsSaved] = useState(false)
-  const [deleteEmail, setDeleteEmail] = useState('')
-  const [deleteActive, setDeleteActive] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(() => {
-    try { const v = localStorage.getItem('pdm_settings_open'); return v === null ? true : v === '1' } catch { return true }
-  })
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(() => {
     try { return localStorage.getItem('pdm_usage_open') === '1' } catch { return false }
   })
@@ -81,6 +74,7 @@ export default function Home() {
   const [savedSearchCount, setSavedSearchCount] = useState(0)
   const [searchCount, setSearchCount] = useState(0)
   const [aiOverviewCount, setAIOverviewCount] = useState(0)
+  const [aiOverviewsList, setAIOverviewsList] = useState<{ siret: string; companyName: string; city: string; createdAt: string }[]>([])
   const [userTier, setUserTier] = useState<UserTier>('free')
   const [discountInfo, setDiscountInfo] = useState<{ code: string; plan: string; expiresAt: string } | null>(null)
 
@@ -128,6 +122,7 @@ export default function Home() {
           if (data && typeof data.aiOverviewCount === 'number') {
             setAIOverviewCount(data.aiOverviewCount)
           }
+          if (data?.aiOverviews) setAIOverviewsList(data.aiOverviews)
           if (data?.tier) setUserTier(data.tier as UserTier)
           setDiscountInfo(data?.discount ?? null)
         })
@@ -208,18 +203,6 @@ export default function Home() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
   }, [isDark])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false)
-        setDeleteActive(false)
-        setDeleteEmail('')
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const handleLocate = () => {
     if (!navigator.geolocation) return
@@ -383,7 +366,7 @@ export default function Home() {
   }
 
   const handleDeleteAccount = useCallback(async () => {
-    if (!user || deleteEmail !== user.email) return
+    if (!user) return
     try {
       const token = await user.getIdToken()
       await fetch('/api/account/delete', {
@@ -393,11 +376,8 @@ export default function Home() {
       await signOut(auth)
       setUserTier('free')
       setDiscountInfo(null)
-      setDeleteActive(false)
-      setDeleteEmail('')
-      setProfileOpen(false)
     } catch {}
-  }, [user, deleteEmail])
+  }, [user])
 
   const handleExpand = useCallback(async (company: any) => {
     setExpandedCompany(company)
@@ -425,6 +405,13 @@ export default function Home() {
     }
     const newCount = incrementAIOverviewCount(uKey)
     setAIOverviewCount(newCount)
+    const fields = _company.fields ?? {}
+    const siret = fields.SIRET || fields.siret || ''
+    const companyName = fields["Dénomination de l'unité légale"] || fields.denominationUniteLegale || ''
+    const city = fields["Commune de l'établissement"] || fields.communeEtablissement || ''
+    if (siret) {
+      setAIOverviewsList((prev) => [{ siret, companyName, city, createdAt: new Date().toISOString() }, ...prev.filter((e) => e.siret !== siret)])
+    }
     const token = user ? await user.getIdToken() : ''
     setAIToken(token)
     setAISavedOverview(null)
@@ -452,6 +439,27 @@ export default function Home() {
     } catch { /* fall through to generate */ }
     handleAskAI(_company)
   }, [user, handleAskAI])
+
+  /** Open a cached AI overview from the settings modal AI overviews list. */
+  const handleViewAIBySiret = useCallback(async (siret: string) => {
+    if (!user) return
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch(`/api/ai-overview?siret=${encodeURIComponent(siret)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.cached) {
+          const entry = aiOverviewsList.find((e) => e.siret === siret)
+          const fakeCompany = { fields: { SIRET: siret, "Dénomination de l'unité légale": entry?.companyName ?? siret, "Commune de l'établissement": entry?.city ?? '' } }
+          setAIToken(token)
+          setAISavedOverview({ text: data.text, sources: data.sources })
+          setAICompany(fakeCompany)
+        }
+      }
+    } catch {}
+  }, [user, aiOverviewsList])
 
   /** Redirect the user to a Stripe Checkout session for the selected plan. */
   const handleCheckout = useCallback(async (planId: string, billing: 'monthly' | 'yearly') => {
@@ -651,7 +659,7 @@ export default function Home() {
             <div className="flex items-center gap-1.5">
               {/* Search toggle */}
               <button
-                onClick={() => { setSearchExpanded(!searchExpanded); setProfileOpen(false) }}
+                onClick={() => setSearchExpanded(!searchExpanded)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
                   searchExpanded
                     ? isDark ? 'bg-white/15 border-white/25 text-white' : 'bg-violet-50 border-violet-300 text-violet-600'
@@ -664,14 +672,13 @@ export default function Home() {
                 </svg>
               </button>
               {/* Profile */}
-              <div className="relative" ref={profileRef}>
-                <button
-                  onClick={() => { setProfileOpen(!profileOpen); setSearchExpanded(false) }}
+              <button
+                  onClick={() => { setSettingsModalOpen(true); setSearchExpanded(false) }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all overflow-hidden ${d.iconBtn}`}
                   data-tooltip={user ? 'Account' : 'Settings'} data-tooltip-pos="left"
                 >
                   {user?.photoURL ? (
-                    <img src={user.photoURL} alt="" className="w-full h-full rounded-lg object-cover" />
+                    <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="w-full h-full rounded-lg object-cover" />
                   ) : user ? (
                     <span className="w-full h-full rounded-lg bg-violet-600 flex items-center justify-center text-white text-xs font-semibold">
                       {(user.displayName?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
@@ -682,260 +689,6 @@ export default function Home() {
                     </svg>
                   )}
                 </button>
-                {profileOpen && (
-                  <div className={`absolute right-0 top-10 z-[2000] w-72 rounded-xl border shadow-2xl backdrop-blur-sm ${d.dropdownBg}`}>
-                    {user && (
-                      <div className={`px-4 py-3 border-b ${d.tabBorder}`}>
-                        <div className="flex items-center gap-2.5">
-                          {user.photoURL ? (
-                            <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
-                          ) : (
-                            <span className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                              {(user.displayName?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-sm font-medium truncate ${d.title}`}>{user.displayName ?? 'User'}</p>
-                            {user.email && <p className={`text-[11px] truncate ${d.dropdownLabel}`}>{user.email}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={`border-t ${d.tabBorder}`}>
-                      <div className="px-3 py-2.5 space-y-3">
-                        <button
-                          onClick={() => { const next = !settingsOpen; setSettingsOpen(next); try { localStorage.setItem('pdm_settings_open', next ? '1' : '0') } catch {} }}
-                          className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-800'}`}
-                        >
-                          <span>Settings</span>
-                          <svg className={`w-3 h-3 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        {settingsOpen && (
-                          <div className="space-y-3">
-                            <div>
-                              <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${d.dropdownLabel}`}>Theme</div>
-                              <div className={`flex rounded-lg border overflow-hidden ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                                {([
-                                  { mode: 'system' as const, label: 'Auto', icon: (
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                  )},
-                                  { mode: 'light' as const, label: 'Light', icon: (
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
-                                    </svg>
-                                  )},
-                                  { mode: 'dark' as const, label: 'Dark', icon: (
-                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-                                    </svg>
-                                  )},
-                                ]).map(({ mode, label, icon }) => (
-                                  <button
-                                    key={mode}
-                                    onClick={() => setThemeMode(mode)}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-medium transition-colors ${
-                                      themeMode === mode
-                                        ? isDark ? 'bg-white/15 text-white' : 'bg-violet-50 text-violet-700'
-                                        : isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    {icon}
-                                    {label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${d.dropdownLabel}`}>Map Style</div>
-                              <div className={`flex rounded-lg border overflow-hidden ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                                {([
-                                  { style: 'default' as const, label: 'Default' },
-                                  { style: 'themed' as const, label: 'Themed' },
-                                  { style: 'satellite' as const, label: 'Satellite' },
-                                ]).map(({ style, label }) => (
-                                  <button
-                                    key={style}
-                                    onClick={() => setMapStyle(style)}
-                                    className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
-                                      mapStyle === style
-                                        ? isDark ? 'bg-white/15 text-white' : 'bg-violet-50 text-violet-700'
-                                        : isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    {label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${d.dropdownLabel}`}>Visible Fields</div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => { setFieldsModalTab('list'); setProfileOpen(false) }}
-                                  className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                >
-                                  List ({listColumns.length})
-                                </button>
-                                <button
-                                  onClick={() => { setFieldsModalTab('popup'); setProfileOpen(false) }}
-                                  className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                >
-                                  Popup ({popupColumns.length})
-                                </button>
-                              </div>
-                            </div>
-
-                            {user && (
-                              <div>
-                                <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${d.dropdownLabel}`}>Plan</div>
-                                <button
-                                  onClick={() => {
-                                    if (userTier !== 'free') {
-                                      handleManagePlan()
-                                      setProfileOpen(false)
-                                    } else {
-                                      setPaywallFeature('plan')
-                                      setProfileOpen(false)
-                                    }
-                                  }}
-                                  className={`w-full text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${
-                                    isDark
-                                      ? 'border-white/10 text-gray-300 hover:bg-white/5 hover:border-white/20'
-                                      : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                  }`}
-                                >
-                                  {userTier === 'free' ? 'Upgrade plan' : 'Manage plan'}
-                                </button>
-                              </div>
-                            )}
-
-                            {user && userTier !== 'enterprise' && (
-                              <div>
-                                <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${d.dropdownLabel}`}>Danger Zone</div>
-                                {!deleteActive ? (
-                                  <button
-                                    onClick={() => setDeleteActive(true)}
-                                    className={`text-xs font-medium transition-colors ${d.signOutBtn}`}
-                                  >
-                                    Delete account
-                                  </button>
-                                ) : (
-                                  <div className="space-y-1.5">
-                                    <p className={`text-[11px] ${isDark ? 'text-red-400' : 'text-red-500'}`}>
-                                      Type your email to confirm deletion
-                                    </p>
-                                    <input
-                                      type="email"
-                                      value={deleteEmail}
-                                      onChange={(e) => setDeleteEmail(e.target.value)}
-                                      placeholder={user.email ?? 'your@email.com'}
-                                      className={`w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition-all ${
-                                        isDark
-                                          ? 'bg-white/5 border-red-500/50 text-white placeholder-gray-600 focus:border-red-400'
-                                          : 'bg-gray-50 border-red-300 text-gray-900 placeholder-gray-400 focus:border-red-500'
-                                      }`}
-                                    />
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={handleDeleteAccount}
-                                        disabled={deleteEmail !== user.email}
-                                        className={`text-xs font-medium transition-colors ${
-                                          deleteEmail === user.email
-                                            ? isDark ? 'text-red-400 hover:text-red-300' : 'text-red-500 hover:text-red-600'
-                                            : isDark ? 'text-gray-700 cursor-not-allowed' : 'text-gray-300 cursor-not-allowed'
-                                        }`}
-                                      >
-                                        Delete permanently
-                                      </button>
-                                      <button
-                                        onClick={() => { setDeleteActive(false); setDeleteEmail('') }}
-                                        className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className={`border-t ${d.tabBorder}`}>
-                      <div className="px-3 py-2.5 space-y-2">
-                        <UsageTracker
-                          isDark={isDark}
-                          userTier={userTier}
-                          searchCount={searchCount}
-                          aiOverviewCount={aiOverviewCount}
-                          savedSearchCount={savedSearchCount}
-                          isLoggedIn={!!user}
-                          isOpen={usageOpen}
-                          onToggle={() => { const next = !usageOpen; setUsageOpen(next); try { localStorage.setItem('pdm_usage_open', next ? '1' : '0') } catch {} }}
-                        />
-                      </div>
-                    </div>
-
-                    {user ? (
-                      <>
-                        <div className={`border-t ${d.tabBorder}`}>
-                          <div className="px-3 py-2.5">
-                            <SavedAreas
-                              onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id) => {
-                                handleSearch(geo)
-                                setFilters(restoredFilters)
-                                setSortCriteria(restoredSortCriteria)
-                                setActivePresets(restoredPresets)
-                                setActiveSearchId(id)
-                                setRestoreGeometry({ geometry: geo, ts: Date.now() })
-                                setProfileOpen(false)
-                              }}
-                              onDeleteCurrentSearch={() => handleSearch(null)}
-                              onCountChange={setSavedSearchCount}
-                              activeSearchId={activeSearchId}
-                              isDark={isDark}
-                            />
-                          </div>
-                        </div>
-                        <div className={`px-3 py-2.5 border-t ${d.tabBorder}`}>
-                          <div className="flex items-center justify-between">
-                            <button
-                              onClick={handleSignOut}
-                              className={`text-xs font-medium transition-colors ${d.signOutBtn}`}
-                            >
-                              Sign Out
-                            </button>
-                            {prefsSaved && (
-                              <span className={`text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'} animate-prefs-saved`}>
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                Preferences saved
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className={`px-3 py-3 border-t ${d.tabBorder}`}>
-                        <button
-                          onClick={() => { setAuthOpen(true); setProfileOpen(false) }}
-                          className={`w-full flex items-center justify-center gap-2 text-sm font-medium border rounded-lg px-3 py-2 transition-all ${d.signInBtn}`}
-                        >
-                          Sign in / Create account
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -999,6 +752,46 @@ export default function Home() {
         isDark={isDark}
         onClose={() => setAuthOpen(false)}
         isSigningIn={isSigningIn}
+      />
+    )}
+
+    {settingsModalOpen && (
+      <SettingsModal
+        isDark={isDark}
+        onClose={() => setSettingsModalOpen(false)}
+        user={user ? { uid: user.uid, email: user.email ?? null, displayName: user.displayName ?? null, photoURL: user.photoURL ?? null } : null}
+        userTier={userTier}
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        mapStyle={mapStyle}
+        setMapStyle={setMapStyle}
+        listColumns={listColumns}
+        popupColumns={popupColumns}
+        onFieldsModal={setFieldsModalTab}
+        onManagePlan={handleManagePlan}
+        onPaywall={setPaywallFeature}
+        onDeleteAccount={handleDeleteAccount}
+        onSignOut={handleSignOut}
+        onSignIn={() => setAuthOpen(true)}
+        prefsSaved={prefsSaved}
+        searchCount={searchCount}
+        aiOverviewCount={aiOverviewCount}
+        aiOverviewsList={aiOverviewsList}
+        savedSearchCount={savedSearchCount}
+        usageOpen={usageOpen}
+        onUsageToggle={() => { const next = !usageOpen; setUsageOpen(next); try { localStorage.setItem('pdm_usage_open', next ? '1' : '0') } catch {} }}
+        onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id) => {
+          handleSearch(geo)
+          setFilters(restoredFilters)
+          setSortCriteria(restoredSortCriteria)
+          setActivePresets(restoredPresets)
+          setActiveSearchId(id)
+          setRestoreGeometry({ geometry: geo, ts: Date.now() })
+        }}
+        onDeleteCurrentSearch={() => handleSearch(null)}
+        onSavedSearchCountChange={setSavedSearchCount}
+        activeSearchId={activeSearchId}
+        onViewAIOverview={handleViewAIBySiret}
       />
     )}
 

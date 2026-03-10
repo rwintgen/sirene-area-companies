@@ -44,7 +44,7 @@ interface SettingsModalProps {
   savedSearchCount: number
   usageOpen: boolean
   onUsageToggle: () => void
-  onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string) => void
+  onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string, preQueryPresets?: string[], preQueryFilters?: Filter[], preQueryCustomIds?: string[]) => void
   onDeleteCurrentSearch: () => void
   onSavedSearchCountChange: (count: number) => void
   activeSearchId: string | null

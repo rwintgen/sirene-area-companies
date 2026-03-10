@@ -1,55 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isDbConfigured, getPool } from '@/lib/db'
+import { getPool } from '@/lib/db'
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
-import { TIER_LIMITS, type UserTier } from '@/lib/usage'
-
-import fs from 'fs'
-import path from 'path'
-import { parse } from 'csv-parse/sync'
-
-const GEO_COL = "Géolocalisation de l'établissement"
+import { TIER_LIMITS, MAX_ENTERPRISE_RESULT_LIMIT, type UserTier } from '@/lib/usage'
 
 interface Company {
   lat: number
   lon: number
   fields: Record<string, string>
-}
-
-let csvCompaniesCache: Company[] | null = null
-let csvColumnsCache: string[] | null = null
-
-/**
- * Parses the sample CSV into an in-memory company array.
- * Results are cached after the first call for the lifetime of the process.
- * Used as a fallback when no PostGIS database is configured.
- */
-function loadFromCsv(): { companies: Company[]; columns: string[] } {
-  if (csvCompaniesCache && csvColumnsCache) {
-    return { companies: csvCompaniesCache, columns: csvColumnsCache }
-  }
-
-  const csvPath = path.join(process.cwd(), 'data', 'economicref-france-sirene-v3-sample.csv')
-  const content = fs.readFileSync(csvPath, 'utf-8')
-  const records = parse(content, { columns: true, skip_empty_lines: true })
-
-  csvColumnsCache = records.length > 0 ? Object.keys(records[0] as Record<string, unknown>) : []
-
-  csvCompaniesCache = (records as any[])
-    .filter((r) => r[GEO_COL]?.trim())
-    .map((r) => {
-      const parts = r[GEO_COL].split(',')
-      if (parts.length < 2) return null
-      const lat = parseFloat(parts[0].trim())
-      const lon = parseFloat(parts[1].trim())
-      if (!isFinite(lat) || !isFinite(lon)) return null
-      const fields: Record<string, string> = {}
-      for (const key of csvColumnsCache!) fields[key] = r[key] ?? ''
-      return { lat, lon, fields }
-    })
-    .filter(Boolean) as Company[]
-
-  console.log(`[csv] Loaded ${csvCompaniesCache.length} companies.`)
-  return { companies: csvCompaniesCache, columns: csvColumnsCache }
 }
 
 let dbColumnsCache: string[] | null = null
@@ -110,7 +67,7 @@ async function enforceAndIncrementSearchCount(token: string): Promise<number> {
  * falls within the given GeoJSON geometry (polygon/rectangle).
  * Column names are lazily cached from the first result's JSONB `fields` keys.
  */
-const RESULT_LIMIT = 50_000
+const RESULT_LIMIT = MAX_ENTERPRISE_RESULT_LIMIT
 
 /**
  * SQL fragment that extracts the numeric NAF division (first 2 chars of APE code) as an integer.
@@ -214,59 +171,6 @@ function buildFilterSQL(filters: PreQueryFilter[], startParam: number): { clause
   return { clauses, params, nextParam: p }
 }
 
-/**
- * Applies pre-query filters client-side (for CSV fallback).
- */
-function applyFiltersToArray(companies: Company[], filters: PreQueryFilter[]): Company[] {
-  if (filters.length === 0) return companies
-  return companies.filter((c) =>
-    filters.every((f) => {
-      const val = (c.fields[f.column] ?? '').toLowerCase()
-      let match: boolean
-      switch (f.operator) {
-        case 'contains': match = val.includes(f.value.toLowerCase()); break
-        case 'equals': match = val === f.value.toLowerCase(); break
-        case 'empty': match = val.length === 0; break
-        default: match = true
-      }
-      return f.negate ? !match : match
-    })
-  )
-}
-
-async function searchWithPostGIS(geometry: any, limit: number, presets: string[] = [], filters: PreQueryFilter[] = []): Promise<{ companies: Company[]; columns: string[]; truncated: boolean }> {
-  const pool = await getPool()
-  const geoJson = JSON.stringify(geometry)
-  const effectiveLimit = Math.min(Math.max(limit, 1), RESULT_LIMIT)
-
-  const presetClauses = presets
-    .filter((id) => Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
-    .map((id) => PRESET_SQL[id])
-
-  const wherePresets = presetClauses.length > 0 ? ` AND (${presetClauses.join(') AND (')})` : ''
-
-  const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
-  const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
-
-  const { rows } = await pool.query<{ lat: number; lon: number; fields: Record<string, string> }>(
-    `SELECT lat, lon, fields
-     FROM establishments
-     WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters}
-     LIMIT $2`,
-    [geoJson, effectiveLimit, ...filterParams]
-  )
-
-  if (!dbColumnsCache && rows.length > 0) {
-    dbColumnsCache = Object.keys(rows[0].fields)
-  }
-
-  return {
-    companies: rows.map((r) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
-    columns: dbColumnsCache ?? [],
-    truncated: rows.length === effectiveLimit,
-  }
-}
-
 async function getColumnsFromDb(): Promise<string[]> {
   if (dbColumnsCache) return dbColumnsCache
   const pool = await getPool()
@@ -275,21 +179,11 @@ async function getColumnsFromDb(): Promise<string[]> {
   return dbColumnsCache ?? []
 }
 
-/** GET: returns available column names and whether the app is running on sample data. */
+/** GET: returns available column names. */
 export async function GET() {
   try {
-    if (isDbConfigured()) {
-      try {
-        const columns = await getColumnsFromDb()
-        return NextResponse.json({ columns, sampleData: false })
-      } catch (dbError) {
-        console.error('[db] Connection failed, falling back to CSV:', dbError)
-        const { columns } = loadFromCsv()
-        return NextResponse.json({ columns, sampleData: true, dbError: String(dbError) })
-      }
-    }
-    const { columns } = loadFromCsv()
-    return NextResponse.json({ columns, sampleData: true })
+    const columns = await getColumnsFromDb()
+    return NextResponse.json({ columns })
   } catch (error) {
     console.error('Columns API error:', error)
     return NextResponse.json({ error: 'Failed to read columns', details: String(error) }, { status: 500 })
@@ -333,123 +227,69 @@ export async function POST(req: NextRequest) {
     const sseSend = (data: any) => encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
     const sseHeaders = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' }
 
-    if (isDbConfigured()) {
-      let client: any = null
-      try {
-        const pool = await getPool()
-        client = await pool.connect()
-      } catch (dbError) {
-        console.error('[db] Connection failed, falling back to CSV:', dbError)
-      }
+    const pool = await getPool()
+    const client = await pool.connect()
 
-      if (client) {
-        const dbClient = client
-        const stream = new ReadableStream({
-          async start(controller) {
-            try {
-              const geoJson = JSON.stringify(geometry)
-              const effectiveLimit = Math.min(Math.max(limit, 1), RESULT_LIMIT)
-
-              const presetClauses = presets
-                .filter((id) => Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
-                .map((id) => PRESET_SQL[id])
-              const wherePresets = presetClauses.length > 0 ? ` AND (${presetClauses.join(') AND (')})` : ''
-              const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
-              const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
-
-              controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
-
-              await dbClient.query('BEGIN')
-              await dbClient.query(
-                `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters} LIMIT $2`,
-                [geoJson, effectiveLimit, ...filterParams]
-              )
-
-              const BATCH_SIZE = 1000
-              let loaded = 0
-
-              while (loaded < effectiveLimit) {
-                const fetchSize = Math.min(BATCH_SIZE, effectiveLimit - loaded)
-                const batch = await dbClient.query(`FETCH ${fetchSize} FROM search_cursor`)
-                if (batch.rows.length === 0) break
-
-                if (!dbColumnsCache && batch.rows.length > 0) {
-                  dbColumnsCache = Object.keys(batch.rows[0].fields)
-                }
-
-                loaded += batch.rows.length
-                try {
-                  controller.enqueue(sseSend({
-                    type: 'batch',
-                    companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
-                    loaded,
-                  }))
-                } catch { break }
-              }
-
-              const truncated = loaded >= effectiveLimit
-              console.log(`[postgis-stream] Streamed ${loaded} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (presets: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
-
-              controller.enqueue(sseSend({
-                type: 'complete',
-                columns: dbColumnsCache ?? [],
-                truncated,
-                resultLimit: effectiveLimit,
-                searchCountAfter,
-                sampleData: false,
-                activePresets: presets,
-              }))
-            } catch (err) {
-              console.error('[postgis-stream] Error:', err)
-              try { controller.enqueue(sseSend({ type: 'error', message: String(err) })) } catch {}
-            } finally {
-              try { await dbClient.query('ROLLBACK') } catch {}
-              dbClient.release()
-              try { controller.close() } catch {}
-            }
-          },
-        })
-
-        return new Response(stream, { headers: sseHeaders })
-      }
-    }
-
-    // CSV fallback — wrap in SSE format for consistent client parsing
-    const csvSearchCountAfter = searchCountAfter
-    const csvPresets = presets
-    const csvFilters = filters
-    const csvLimit = limit
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon')
-          const { point } = await import('@turf/helpers')
-          const { applyPresets } = await import('@/lib/presets')
-          const { companies: all, columns } = loadFromCsv()
+          const geoJson = JSON.stringify(geometry)
+          const effectiveLimit = Math.min(Math.max(limit, 1), RESULT_LIMIT)
 
-          controller.enqueue(sseSend({ type: 'start', total: csvLimit }))
+          const presetClauses = presets
+            .filter((id) => Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
+            .map((id) => PRESET_SQL[id])
+          const wherePresets = presetClauses.length > 0 ? ` AND (${presetClauses.join(') AND (')})` : ''
+          const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
+          const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
 
-          const spatial = all.filter((c) => booleanPointInPolygon(point([c.lon, c.lat]), geometry))
-          const presetFiltered = applyPresets(spatial, csvPresets)
-          const filtered = applyFiltersToArray(presetFiltered, csvFilters)
-          const truncated = filtered.length > csvLimit
-          const companies = truncated ? filtered.slice(0, csvLimit) : filtered
+          controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
 
-          console.log(`[csv-stream] Found ${filtered.length} establishments, returning ${companies.length} (limit: ${csvLimit}).`)
+          await client.query('BEGIN')
+          await client.query(
+            `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters} LIMIT $2`,
+            [geoJson, effectiveLimit, ...filterParams]
+          )
 
-          controller.enqueue(sseSend({ type: 'batch', companies, loaded: companies.length }))
+          const BATCH_SIZE = 100
+          let loaded = 0
+
+          while (loaded < effectiveLimit) {
+            const fetchSize = Math.min(BATCH_SIZE, effectiveLimit - loaded)
+            const batch = await client.query(`FETCH ${fetchSize} FROM search_cursor`)
+            if (batch.rows.length === 0) break
+
+            if (!dbColumnsCache && batch.rows.length > 0) {
+              dbColumnsCache = Object.keys(batch.rows[0].fields)
+            }
+
+            loaded += batch.rows.length
+            try {
+              controller.enqueue(sseSend({
+                type: 'batch',
+                companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+                loaded,
+              }))
+            } catch { break }
+          }
+
+          const truncated = loaded >= effectiveLimit
+          console.log(`[postgis-stream] Streamed ${loaded} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (presets: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
+
           controller.enqueue(sseSend({
             type: 'complete',
-            columns,
-            sampleData: true,
+            columns: dbColumnsCache ?? [],
             truncated,
-            searchCountAfter: csvSearchCountAfter,
-            activePresets: csvPresets,
+            resultLimit: effectiveLimit,
+            searchCountAfter,
+            activePresets: presets,
           }))
         } catch (err) {
-          console.error('[csv-stream] Error:', err)
+          console.error('[postgis-stream] Error:', err)
           try { controller.enqueue(sseSend({ type: 'error', message: String(err) })) } catch {}
         } finally {
+          try { await client.query('ROLLBACK') } catch {}
+          client.release()
           try { controller.close() } catch {}
         }
       },

@@ -263,6 +263,9 @@ html, body {
   z-index: 10000;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
+[data-tooltip]:hover {
+  z-index: 50;
+}
 [data-tooltip]:hover::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
@@ -300,6 +303,17 @@ html, body {
 [data-tooltip-pos=bottom]:hover::after {
   transform: translateX(-50%) translateY(0);
   transition-delay: 1s;
+}
+/* Bottom-left variant */
+[data-tooltip-pos=bottom-left]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+  left: 0;
+  transform: translateX(0) translateY(-2px);
+}
+[data-tooltip-pos=bottom-left]:hover::after {
+  transform: translateX(0) translateY(0);
+  transition-delay: 0.4s;
 }
 
 /* === Leaflet control button tooltips (higher specificity overrides) === */
@@ -416,10 +430,9 @@ input[type=range].pdm-range::-moz-range-progress {
 }
 
 @keyframes loading-bar {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(0); }
-  100% { transform: translateX(100%); }
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(200%); }
 }
 .animate-loading-bar {
-  animation: loading-bar 1.8s ease-in-out infinite;
+  animation: loading-bar 1.5s ease-in-out infinite;
 }

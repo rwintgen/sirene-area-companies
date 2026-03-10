@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A Next.js 14 (App Router) application that lets users draw an area on a Leaflet map and retrieve French company establishments from the SIRENE v3 dataset. The backend uses PostGIS for spatial queries with an in-memory CSV fallback.
+A Next.js 14 (App Router) application that lets users draw an area on a Leaflet map and retrieve French company establishments from the SIRENE v3 dataset. The backend uses PostGIS for spatial queries.
 
 ## Code Style
 
@@ -80,14 +80,13 @@ scripts/
 1. User draws a polygon/rectangle → `Map.tsx` emits GeoJSON geometry via `onSearch`.
 2. `page.tsx` POSTs geometry to `/api/search`.
 3. `route.ts` routes to PostGIS (`ST_Contains`) or CSV fallback (Turf.js).
-4. Response: `{ companies, columns, sampleData }`.
+4. Response: `{ companies, columns }`.
 5. `mapCompanies` useMemo applies client-side filters before rendering markers.
 
 ## Database
 
 - **PostGIS** on Cloud SQL (PostgreSQL 15). Schema in `scripts/setup-db.sql`.
 - All CSV columns are stored in a JSONB `fields` column — the UI dynamically adapts to whatever columns exist.
-- The `sampleData` flag in API responses triggers an amber warning banner.
 
 ## When Making Changes
 
@@ -97,7 +96,6 @@ scripts/
 4. **Do not introduce new inline comments** that merely describe the next line of code.
 5. **Test the build** (`npm run build`) — the project deploys via Firebase App Hosting which runs a production build.
 6. **Do not push your changes** but only commit them only when you get the confirmation from the user that a change you made is working.
-7. **Keep the CSV fallback working** — any changes to `route.ts` must preserve the CSV path for contributors without a database.
 
 ## Common Tasks
 

@@ -160,5 +160,10 @@ export function canExportPremium(tier: UserTier): boolean {
   return tier !== 'free'
 }
 
+/** Pre-search preset filters require at least Individual tier. */
+export function canUsePresets(tier: UserTier): boolean {
+  return tier === 'individual' || tier === 'enterprise'
+}
+
 /** Returns the maximum custom result limit an enterprise user can set. */
 export const MAX_ENTERPRISE_RESULT_LIMIT = 5_000_000

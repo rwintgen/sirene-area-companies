@@ -177,3 +177,75 @@ export function InfoTooltip({ text, children, isDark, position = 'top', width = 
     </div>
   )
 }
+
+const PRESET_PILL_STYLES = {
+  dark: {
+    base: 'bg-white/5 text-gray-500 border-white/8 hover:bg-white/10 hover:text-gray-300',
+    active: 'bg-white/15 text-white border-white/25',
+    customBase: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:text-emerald-300',
+    customActive: 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50',
+  },
+  light: {
+    base: 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700',
+    active: 'bg-violet-50 text-violet-700 border-violet-300',
+    customBase: 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800',
+    customActive: 'bg-emerald-100 text-emerald-800 border-emerald-400',
+  },
+} as const
+
+interface PresetPillProps {
+  label: string
+  active: boolean
+  isDark: boolean
+  custom?: boolean
+  disabled?: boolean
+  onClick?: () => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
+  tooltip?: string
+  tooltipPos?: string
+}
+
+export function PresetPill({ label, active, isDark, custom, disabled, onClick, onMouseEnter, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
+  const s = PRESET_PILL_STYLES[isDark ? 'dark' : 'light']
+  const cls = active
+    ? custom ? s.customActive : s.active
+    : custom ? s.customBase : s.base
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      data-tooltip={tooltip}
+      data-tooltip-pos={tooltipPos}
+      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${cls}`}
+    >
+      {label}
+    </button>
+  )
+}
+
+export function CardSection({ isDark, children, className = '' }: {
+  isDark: boolean
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`rounded-lg border p-2 ${isDark ? 'bg-white/3 border-white/5' : 'bg-gray-50 border-gray-200'} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+export function SectionTitle({ children, isDark, className = '' }: {
+  children: React.ReactNode
+  isDark: boolean
+  className?: string
+}) {
+  return (
+    <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-600' : 'text-gray-400'} ${className}`}>
+      {children}
+    </div>
+  )
+}

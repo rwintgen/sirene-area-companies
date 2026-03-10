@@ -51,8 +51,3 @@ export async function getPool(): Promise<Pool> {
   }
   return pool
 }
-
-/** Checks whether any database connection env vars are set. */
-export function isDbConfigured(): boolean {
-  return !!(process.env.DATABASE_URL || process.env.CLOUD_SQL_CONNECTION_NAME)
-}

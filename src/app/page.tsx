@@ -11,7 +11,7 @@ import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
 import AIOverview from '@/components/AIOverview'
 import SettingsModal from '@/components/SettingsModal'
-import { Modal, CloseButton } from '@/components/ui'
+import { Modal, CloseButton, PresetPill, CardSection, SectionTitle } from '@/components/ui'
 import { applyPresets, PRESET_FILTERS, PRESET_GROUPS, type CustomPreset } from '@/lib/presets'
 import {
   type UserTier,
@@ -27,6 +27,7 @@ import {
   incrementAIOverviewCount,
   TIER_LIMITS,
   MAX_ENTERPRISE_RESULT_LIMIT,
+  canUsePresets,
 } from '@/lib/usage'
 import { auth, db } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
@@ -45,7 +46,6 @@ export default function Home() {
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
   const [restoreGeometry, setRestoreGeometry] = useState<{ geometry: any; ts: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSampleData, setIsSampleData] = useState<boolean | null>(null)
   const [isTruncated, setIsTruncated] = useState(false)
   const [resultLimit, setResultLimit] = useState<number | null>(null)
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>('system')
@@ -96,13 +96,16 @@ export default function Home() {
   const [preQueryPresets, setPreQueryPresets] = useState<string[]>([])
   const [preQueryFilters, setPreQueryFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]>([])
   const [preQueryCustomIds, setPreQueryCustomIds] = useState<string[]>([])
-  const [preQueryOpen, setPreQueryOpen] = useState(false)
-  const [preQueryFilterForm, setPreQueryFilterForm] = useState(false)
-  const [pqfColumn, setPqfColumn] = useState('')
-  const [pqfOperator, setPqfOperator] = useState<'contains' | 'equals' | 'empty'>('contains')
-  const [pqfNegate, setPqfNegate] = useState(false)
-  const [pqfValue, setPqfValue] = useState('')
+  const [pqCustomForm, setPqCustomForm] = useState(false)
+  const [pqCustomLabel, setPqCustomLabel] = useState('')
+  const [pqCustomColumn, setPqCustomColumn] = useState('')
+  const [pqCustomOperator, setPqCustomOperator] = useState<'contains' | 'equals' | 'empty'>('contains')
+  const [pqCustomNegate, setPqCustomNegate] = useState(false)
+  const [pqCustomValue, setPqCustomValue] = useState('')
   const [searchProgress, setSearchProgress] = useState<{ loaded: number; total: number } | null>(null)
+  const [searchETA, setSearchETA] = useState<number | null>(null)
+  const batchTimestamps = useRef<{ loaded: number; time: number }[]>([])
+  const searchTotal = useRef<number>(0)
   const [hoveredPQPreset, setHoveredPQPreset] = useState<string | null>(null)
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark'
@@ -213,7 +216,6 @@ export default function Home() {
           setListColumns((prev) => prev.filter((c) => display.includes(c)))
           setPopupColumns((prev) => prev.filter((c) => display.includes(c)))
         }
-        if (typeof data.sampleData === 'boolean') setIsSampleData(data.sampleData)
       })
       .catch(console.error)
   }, [])
@@ -317,10 +319,22 @@ export default function Home() {
             switch (evt.type) {
               case 'start':
                 setSearchProgress({ loaded: 0, total: evt.total })
+                searchTotal.current = evt.total
+                batchTimestamps.current = [{ loaded: 0, time: Date.now() }]
+                setSearchETA(null)
                 break
               case 'batch':
                 accumulatedCompanies.push(...evt.companies)
                 setSearchProgress((prev) => ({ loaded: evt.loaded, total: prev?.total ?? evt.loaded }))
+                batchTimestamps.current.push({ loaded: evt.loaded, time: Date.now() })
+                if (evt.loaded >= 300) {
+                  const stamps = batchTimestamps.current
+                  const elapsed = stamps[stamps.length - 1].time - stamps[0].time
+                  const msPerResult = elapsed / evt.loaded
+                  const remaining = searchTotal.current - evt.loaded
+                  const eta = Math.round((remaining * msPerResult) / 1000)
+                  setSearchETA(eta > 0 ? eta : null)
+                }
                 break
               case 'complete':
                 meta = evt
@@ -347,7 +361,6 @@ export default function Home() {
       setSearchArea(geometry)
       setSelectedCompany(null)
       setActiveSearchId(null)
-      if (typeof meta.sampleData === 'boolean') setIsSampleData(meta.sampleData)
       if (typeof meta.truncated === 'boolean') setIsTruncated(meta.truncated)
       if (typeof meta.resultLimit === 'number') setResultLimit(meta.resultLimit)
       if (meta.columns && columns.length === 0) {
@@ -355,13 +368,13 @@ export default function Home() {
         const display = meta.columns.filter((c: string) => !HIDDEN_COLS.includes(c))
         setDisplayColumns(display)
       }
-      setPreQueryOpen(false)
     } catch (err: any) {
       if (err.name === 'AbortError') return
       console.error('Failed to search:', err)
     } finally {
       setIsLoading(false)
       setSearchProgress(null)
+      setSearchETA(null)
     }
   }
 
@@ -383,9 +396,12 @@ export default function Home() {
       filtersJson: JSON.stringify(filters),
       sortCriteriaJson: JSON.stringify(sortCriteria),
       presetsJson: JSON.stringify(activePresets),
+      preQueryPresetsJson: JSON.stringify(preQueryPresets),
+      preQueryFiltersJson: JSON.stringify(preQueryFilters),
+      preQueryCustomIdsJson: JSON.stringify(preQueryCustomIds),
       timestamp: new Date(),
     })
-  }, [user, searchArea, filters, sortCriteria, activePresets, userTier, savedSearchCount])
+  }, [user, searchArea, filters, sortCriteria, activePresets, preQueryPresets, preQueryFilters, preQueryCustomIds, userTier, savedSearchCount])
 
   const handleSignInPrompt = useCallback(() => { setAuthOpen(true) }, [])
 
@@ -710,13 +726,18 @@ export default function Home() {
                   style={{ width: `${Math.min((searchProgress.loaded / searchProgress.total) * 100, 100)}%`, background: '#7c3aed' }}
                 />
               ) : (
-                <div className="h-full w-1/2 rounded-full animate-loading-bar" style={{ background: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.25)' }} />
+                <div className="h-full w-1/3 rounded-full animate-loading-bar" style={{ background: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.25)' }} />
               )}
             </div>
             {searchProgress && (
-              <p className={`text-[10px] text-center mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                {searchProgress.loaded.toLocaleString()} / {searchProgress.total.toLocaleString()}
-              </p>
+              <div className={`flex items-center justify-between mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <span className="text-[10px]">{searchProgress.loaded.toLocaleString()} / {searchProgress.total.toLocaleString()}</span>
+                {searchETA !== null && searchETA >= 1 && (
+                  <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    ≤{searchETA >= 60 ? `${Math.floor(searchETA / 60)}m${String(searchETA % 60).padStart(2, '0')}s` : `${searchETA}s`}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -729,15 +750,6 @@ export default function Home() {
           }`}
         >
           <div className="min-w-[380px] w-[380px] h-full flex flex-col">
-        {/* Sample data banner */}
-        {isSampleData && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            </svg>
-            <span className="text-[11px] font-medium">Running on sample data — full dataset not connected</span>
-          </div>
-        )}
         {isTruncated && resultLimit !== null && (
           <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -806,150 +818,200 @@ export default function Home() {
 
         {/* Pre-search filters */}
         {(() => {
-          const preQueryPresetList = PRESET_FILTERS.filter((p) => ['active', 'closed', 'hq', 'employer', 'pme', 'eti-ge', '50plus', 'ess', 'mission', 'commerce', 'industry', 'construction', 'tech', 'health', 'food', 'transport', 'finance', 'realestate', 'pro-services', 'education', 'agriculture', 'company', 'freelance', 'sas', 'sarl', 'association'].includes(p.id))
-          const grouped = PRESET_GROUPS.map((g) => ({ group: g, items: preQueryPresetList.filter((p) => p.group === g) })).filter((g) => g.items.length > 0)
+          const presetsUnlocked = canUsePresets(userTier)
           const totalActive = preQueryPresets.length + preQueryFilters.length + preQueryCustomIds.length
-          const locked = !!searchArea
-          const hoveredDef = hoveredPQPreset ? preQueryPresetList.find((p) => p.id === hoveredPQPreset) ?? customPresets.find((p) => p.id === hoveredPQPreset) : null
-          return (
-            <div className={`flex-shrink-0 border-b ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
-              <button
-                onClick={() => setPreQueryOpen((o) => !o)}
-                className={`w-full flex items-center justify-between px-5 py-2.5 transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Pre-search filters
+          const locked = isLoading || !!searchArea
+          const hasResults = companies.length > 0
+          const hoveredDef = hoveredPQPreset ? PRESET_FILTERS.find((p) => p.id === hoveredPQPreset) ?? customPresets.find((p) => p.id === hoveredPQPreset) : null
+          const effectiveLimit = (userTier === 'individual' || userTier === 'enterprise')
+            ? (customResultLimit ?? getResultLimit(userTier))
+            : getResultLimit(userTier)
+
+          if (!presetsUnlocked) {
+            if (hasResults) return null
+            return (
+              <div className={`flex-1 flex flex-col items-center justify-center border-b px-5 py-6 ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                <svg className={`w-5 h-5 mb-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Pre-search filters
+                </span>
+                <p className={`text-[10px] mt-1 text-center ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                  Filter results server-side before the cap is applied.
+                </p>
+                <button
+                  onClick={() => setPaywallFeature('pre-search filters')}
+                  className={`mt-2 text-[10px] font-medium px-3 py-1 rounded-full border transition-colors ${
+                    isDark ? 'border-white/15 text-gray-400 hover:text-white hover:border-white/30' : 'border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  Upgrade to Individual
+                </button>
+              </div>
+            )
+          }
+
+          if (hasResults) {
+            const activeBuiltIn = PRESET_FILTERS.filter((p) => preQueryPresets.includes(p.id))
+            const activeCustom = customPresets.filter((cp) => preQueryCustomIds.includes(cp.id))
+            return (
+              <div className={`flex-shrink-0 border-b px-5 py-2.5 ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Pre-search
                   </span>
-                  {totalActive > 0 && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isDark ? 'bg-white/10 text-white' : 'bg-violet-100 text-violet-700'}`}>
-                      {totalActive}
-                    </span>
-                  )}
                   {locked && (
-                    <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>locked</span>
+                    <span className={`text-[9px] italic flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>locked</span>
+                  )}
+                  {activeBuiltIn.map((p) => (
+                    <span key={p.id} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-white/15 text-white border-white/25' : 'bg-violet-50 text-violet-700 border-violet-300'}`}>
+                      {p.label}
+                    </span>
+                  ))}
+                  {activeCustom.map((cp) => (
+                    <span key={cp.id} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50' : 'bg-emerald-600 border-emerald-600 text-white'}`}>
+                      {cp.label}
+                    </span>
+                  ))}
+                  {preQueryFilters.map((f, i) => (
+                    <span key={`f-${i}`} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-white/10 border-white/20 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-600'}`}>
+                      {f.negate ? '!' : ''}{f.column.length > 10 ? f.column.substring(0, 10) + '…' : f.column} {f.operator}
+                    </span>
+                  ))}
+                  <span className={`text-[10px] flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    max {effectiveLimit.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div className={`flex-1 overflow-y-auto border-b ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+              <div className="px-5 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Pre-search filters
+                    </h2>
+                    {totalActive > 0 && (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isDark ? 'text-gray-500 bg-white/10' : 'text-gray-500 bg-gray-100'}`}>
+                        {totalActive}
+                      </span>
+                    )}
+                    {locked && (
+                      <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>locked</span>
+                    )}
+                  </div>
+                  {totalActive > 0 && !locked && (
+                    <button
+                      onClick={() => { setPreQueryPresets([]); setPreQueryFilters([]); setPreQueryCustomIds([]) }}
+                      className={`text-[10px] font-medium ${isDark ? 'text-gray-600 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                    >
+                      Clear all
+                    </button>
                   )}
                 </div>
-                <svg className={`w-3 h-3 transition-transform ${preQueryOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {preQueryOpen && (
-                <div className="px-5 pb-3 space-y-2">
-                  <p className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {locked ? 'Clear the drawn area to modify pre-search filters.' : 'Applied server-side — results are pre-filtered before the result cap.'}
-                  </p>
-                  {hoveredDef && (
-                    <p className={`text-[10px] italic px-2 py-1 rounded ${isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
-                      {'description' in hoveredDef ? (hoveredDef as any).description : `${(hoveredDef as CustomPreset).negate ? 'NOT ' : ''}${(hoveredDef as CustomPreset).column} ${(hoveredDef as CustomPreset).operator} ${(hoveredDef as CustomPreset).value}`}
-                    </p>
-                  )}
-                  {grouped.map(({ group, items }) => (
-                    <div key={group}>
-                      <div className={`text-[9px] font-semibold uppercase tracking-widest mb-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{group}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {items.map((p) => {
-                          const active = preQueryPresets.includes(p.id)
-                          return (
-                            <button
-                              key={p.id}
-                              disabled={locked}
-                              onClick={() => setPreQueryPresets((prev) => active ? prev.filter((id) => id !== p.id) : [...prev, p.id])}
-                              onMouseEnter={() => setHoveredPQPreset(p.id)}
-                              onMouseLeave={() => setHoveredPQPreset(null)}
-                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                active
-                                  ? isDark ? 'bg-white/15 border-white/30 text-white' : 'bg-violet-600 border-violet-600 text-white'
-                                  : isDark ? 'bg-transparent border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300' : 'bg-transparent border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                              }`}
-                            >
-                              {p.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                <p className={`text-[10px] leading-relaxed ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                  These filters run server-side before the result limit is applied, giving you more targeted results within your quota. Complex filters may increase query time.
+                </p>
 
-                  {/* Custom presets */}
-                  {customPresets.length > 0 && (
-                    <div>
-                      <div className={`text-[9px] font-semibold uppercase tracking-widest mb-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Custom labels</div>
-                      <div className="flex flex-wrap gap-1">
-                        {customPresets.map((cp) => {
-                          const active = preQueryCustomIds.includes(cp.id)
-                          return (
-                            <button
-                              key={cp.id}
-                              disabled={locked}
-                              onClick={() => setPreQueryCustomIds((prev) => active ? prev.filter((id) => id !== cp.id) : [...prev, cp.id])}
-                              onMouseEnter={() => setHoveredPQPreset(cp.id)}
-                              onMouseLeave={() => setHoveredPQPreset(null)}
-                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                active
-                                  ? isDark ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-emerald-600 border-emerald-600 text-white'
-                                  : isDark ? 'bg-transparent border-emerald-400/20 text-emerald-400/60 hover:border-emerald-400/40 hover:text-emerald-300' : 'bg-transparent border-emerald-200 text-emerald-600 hover:border-emerald-300 hover:text-emerald-700'
-                              }`}
-                            >
-                              {cp.label}
-                            </button>
-                          )
-                        })}
+                {/* Presets card */}
+                <CardSection isDark={isDark}>
+                  {PRESET_GROUPS.map((group) => {
+                    const presets = PRESET_FILTERS.filter((p) => p.group === group)
+                    return (
+                      <div key={group} className="mb-1.5 last:mb-0">
+                        <SectionTitle isDark={isDark} className="mb-0.5">{group}</SectionTitle>
+                        <div className="flex flex-wrap gap-1">
+                          {presets.map((preset) => {
+                            const active = preQueryPresets.includes(preset.id)
+                            return (
+                              <PresetPill
+                                key={preset.id}
+                                label={preset.label}
+                                active={active}
+                                isDark={isDark}
+                                disabled={locked}
+                                onClick={() => setPreQueryPresets((prev) => active ? prev.filter((id) => id !== preset.id) : [...prev, preset.id])}
+                                onMouseEnter={() => setHoveredPQPreset(preset.id)}
+                                onMouseLeave={() => setHoveredPQPreset(null)}
+                              />
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Custom pre-search filters */}
-                  <div className={`pt-1.5 border-t border-dashed ${isDark ? 'border-white/8' : 'border-gray-200'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Custom filters</div>
+                    )
+                  })}
+                  <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <SectionTitle isDark={isDark} className={isDark ? '!text-emerald-500/70' : '!text-emerald-600/70'}>Custom</SectionTitle>
                       {!locked && (
                         <button
                           onClick={() => {
-                            setPreQueryFilterForm(!preQueryFilterForm)
-                            if (!preQueryFilterForm && displayColumns.length > 0) setPqfColumn(displayColumns[0])
+                            setPqCustomForm(!pqCustomForm)
+                            if (!pqCustomForm && displayColumns.length > 0) setPqCustomColumn(displayColumns[0])
                           }}
-                          className={`text-[10px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                          className={`text-[10px] font-medium ${isDark ? 'text-emerald-400/60 hover:text-emerald-400' : 'text-emerald-600/60 hover:text-emerald-600'}`}
                         >
-                          {preQueryFilterForm ? 'Cancel' : '+ Add'}
+                          {pqCustomForm ? 'Cancel' : '+ New'}
                         </button>
                       )}
                     </div>
-                    {preQueryFilters.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-1.5">
-                        {preQueryFilters.map((f, i) => (
-                          <span key={i} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border ${
-                            isDark ? 'bg-white/10 border-white/20 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-600'
-                          }`}>
-                            {f.negate ? '!' : ''}{f.column.length > 15 ? f.column.substring(0, 15) + '\u2026' : f.column} {f.operator === 'empty' ? 'empty' : `${f.operator} "${f.value}"`}
-                            {!locked && (
-                              <button
-                                onClick={() => setPreQueryFilters(preQueryFilters.filter((_, idx) => idx !== i))}
-                                className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}
-                              >
-                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                              </button>
-                            )}
-                          </span>
-                        ))}
+                    {customPresets.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {customPresets.map((cp) => {
+                          const active = preQueryCustomIds.includes(cp.id)
+                          return (
+                            <div key={cp.id} className="group/custom inline-flex items-center gap-0.5">
+                              <PresetPill
+                                label={cp.label}
+                                active={active}
+                                isDark={isDark}
+                                custom
+                                disabled={locked}
+                                onClick={() => setPreQueryCustomIds((prev) => active ? prev.filter((id) => id !== cp.id) : [...prev, cp.id])}
+                                onMouseEnter={() => setHoveredPQPreset(cp.id)}
+                                onMouseLeave={() => setHoveredPQPreset(null)}
+                              />
+                              {!locked && (
+                                <button
+                                  onClick={() => {
+                                    setCustomPresets(customPresets.filter((x) => x.id !== cp.id))
+                                    setPreQueryCustomIds((prev) => prev.filter((id) => id !== cp.id))
+                                  }}
+                                  className={`opacity-0 group-hover/custom:opacity-100 transition-opacity w-3.5 h-3.5 rounded-full flex items-center justify-center ${isDark ? 'text-gray-500 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                                >
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
-                    {preQueryFilterForm && !locked && (
-                      <div className={`rounded-lg border p-2 space-y-1.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50 border-gray-200'}`}>
+                    {pqCustomForm && !locked && (
+                      <div className={`rounded-lg border p-2 space-y-1.5 ${isDark ? 'bg-white/3 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <input
+                          type="text"
+                          value={pqCustomLabel}
+                          onChange={(e) => setPqCustomLabel(e.target.value)}
+                          placeholder="Label name…"
+                          className={`w-full rounded border px-1.5 py-1 outline-none text-xs ${isDark ? 'bg-white/5 border-white/10 text-gray-300 placeholder-gray-600' : 'bg-white border-gray-200 text-gray-700 placeholder-gray-400'}`}
+                        />
                         <div className="flex items-center gap-1 min-w-0">
                           <select
-                            value={pqfColumn}
-                            onChange={(e) => setPqfColumn(e.target.value)}
-                            className={`flex-1 min-w-0 rounded border h-[26px] text-xs outline-none ${
-                              isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'
-                            }`}
+                            value={pqCustomColumn}
+                            onChange={(e) => setPqCustomColumn(e.target.value)}
+                            className={`flex-1 min-w-0 rounded border h-[26px] text-xs outline-none ${isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
                           >
                             {displayColumns.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <button
-                            onClick={() => setPqfNegate(!pqfNegate)}
+                            onClick={() => setPqCustomNegate(!pqCustomNegate)}
                             className={`flex-shrink-0 text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
-                              pqfNegate
+                              pqCustomNegate
                                 ? 'text-orange-400 border-orange-500/50 bg-orange-500/10'
                                 : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
                             }`}
@@ -957,61 +1019,200 @@ export default function Home() {
                             NOT
                           </button>
                           <select
-                            value={pqfOperator}
-                            onChange={(e) => setPqfOperator(e.target.value as 'contains' | 'equals' | 'empty')}
-                            className={`rounded border px-1 py-1 outline-none text-xs ${
-                              isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'
-                            }`}
+                            value={pqCustomOperator}
+                            onChange={(e) => setPqCustomOperator(e.target.value as 'contains' | 'equals' | 'empty')}
+                            className={`rounded border px-1 py-1 outline-none text-xs ${isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
                           >
                             <option value="contains">contains</option>
                             <option value="equals">equals</option>
                             <option value="empty">empty</option>
                           </select>
                         </div>
-                        {pqfOperator !== 'empty' && (
+                        {pqCustomOperator !== 'empty' && (
                           <input
                             type="text"
-                            value={pqfValue}
-                            onChange={(e) => setPqfValue(e.target.value)}
-                            placeholder="value\u2026"
-                            className={`w-full rounded border px-1.5 py-1 outline-none text-xs ${
-                              isDark ? 'bg-white/5 border-white/10 text-gray-300 placeholder-gray-600' : 'bg-white border-gray-200 text-gray-700 placeholder-gray-400'
-                            }`}
+                            value={pqCustomValue}
+                            onChange={(e) => setPqCustomValue(e.target.value)}
+                            placeholder="value…"
+                            className={`w-full rounded border px-1.5 py-1 outline-none text-xs ${isDark ? 'bg-white/5 border-white/10 text-gray-300 placeholder-gray-600' : 'bg-white border-gray-200 text-gray-700 placeholder-gray-400'}`}
                           />
                         )}
                         <button
-                          disabled={!pqfColumn || (pqfOperator !== 'empty' && !pqfValue.trim())}
+                          disabled={!pqCustomLabel.trim() || !pqCustomColumn}
                           onClick={() => {
-                            setPreQueryFilters([...preQueryFilters, { column: pqfColumn, operator: pqfOperator, negate: pqfNegate, value: pqfValue }])
-                            setPqfValue('')
-                            setPqfNegate(false)
-                            setPreQueryFilterForm(false)
+                            const id = 'custom_' + Date.now().toString(36)
+                            setCustomPresets([...customPresets, {
+                              id,
+                              label: pqCustomLabel.trim(),
+                              column: pqCustomColumn,
+                              operator: pqCustomOperator,
+                              negate: pqCustomNegate,
+                              value: pqCustomValue,
+                            }])
+                            setPqCustomLabel('')
+                            setPqCustomValue('')
+                            setPqCustomNegate(false)
+                            setPqCustomForm(false)
                           }}
                           className={`text-[10px] font-semibold py-1 px-3 rounded-lg transition-all disabled:opacity-40 ${
-                            isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            isDark ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                           }`}
                         >
-                          Add filter
+                          Create preset
                         </button>
                       </div>
                     )}
                   </div>
+                  {hoveredDef && (
+                    <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                      {'description' in hoveredDef ? (hoveredDef as any).description : `${(hoveredDef as CustomPreset).negate ? 'NOT ' : ''}${(hoveredDef as CustomPreset).column} ${(hoveredDef as CustomPreset).operator} ${(hoveredDef as CustomPreset).value}`}
+                    </p>
+                  )}
+                </CardSection>
 
-                  {totalActive > 0 && !locked && (
+                {/* Filters card */}
+                <CardSection isDark={isDark} className="space-y-1.5">
+                  {preQueryFilters.map((f, i) => (
+                    <div key={i} className="flex items-center gap-1 min-w-0">
+                      <select
+                        value={f.column}
+                        disabled={locked}
+                        onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, column: e.target.value } : x))}
+                        className={`flex-1 min-w-0 rounded border h-[26px] text-xs outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {displayColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <button
+                        disabled={locked}
+                        onClick={() => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, negate: !x.negate } : x))}
+                        className={`flex-shrink-0 text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          f.negate
+                            ? 'text-orange-400 border-orange-500/50 bg-orange-500/10'
+                            : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
+                        }`}
+                      >
+                        NOT
+                      </button>
+                      <select
+                        value={f.operator}
+                        disabled={locked}
+                        onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, operator: e.target.value as 'contains' | 'equals' | 'empty' } : x))}
+                        className={`rounded border px-1 py-1 outline-none text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'
+                        }`}
+                      >
+                        <option value="contains">contains</option>
+                        <option value="equals">equals</option>
+                        <option value="empty">empty</option>
+                      </select>
+                      {f.operator !== 'empty' && (
+                        <input
+                          type="text"
+                          value={f.value}
+                          disabled={locked}
+                          onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))}
+                          placeholder="value…"
+                          className={`flex-1 min-w-0 rounded border px-1.5 py-1 outline-none text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+                            isDark ? 'bg-white/5 border-white/10 text-gray-300 placeholder-gray-600' : 'bg-white border-gray-200 text-gray-700 placeholder-gray-400'
+                          }`}
+                        />
+                      )}
+                      {!locked && (
+                        <button
+                          onClick={() => setPreQueryFilters(preQueryFilters.filter((_, idx) => idx !== i))}
+                          className={`flex-shrink-0 ${isDark ? 'text-gray-600 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!locked && (
                     <button
-                      onClick={() => { setPreQueryPresets([]); setPreQueryFilters([]); setPreQueryCustomIds([]) }}
-                      className={`text-[10px] font-medium underline ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                      onClick={() => {
+                        const col = displayColumns.length > 0 ? displayColumns[0] : ''
+                        setPreQueryFilters([...preQueryFilters, { column: col, operator: 'contains', negate: false, value: '' }])
+                      }}
+                      className={`flex items-center text-[10px] font-medium h-6 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                      Clear all
+                      + Add filter
                     </button>
                   )}
-                </div>
-              )}
+                </CardSection>
+
+                {/* Result limit card */}
+                {(userTier === 'individual' || userTier === 'enterprise') && (() => {
+                  const maxForTier = userTier === 'enterprise' ? MAX_ENTERPRISE_RESULT_LIMIT : TIER_LIMITS[userTier].resultsPerQuery
+                  const currentValue = customResultLimit ?? getResultLimit(userTier)
+                  const handleChange = (v: number) => {
+                    if (isNaN(v) || v < 1) { setCustomResultLimit(null); return }
+                    setCustomResultLimit(Math.min(v, maxForTier))
+                  }
+                  return (
+                    <CardSection isDark={isDark}>
+                      <div className="space-y-2">
+                        <input
+                          type="range"
+                          min={1}
+                          max={maxForTier}
+                          step={1}
+                          value={currentValue}
+                          disabled={locked}
+                          onChange={(e) => handleChange(parseInt(e.target.value, 10))}
+                          className="pdm-range"
+                          style={{ background: `linear-gradient(to right, #7c3aed ${maxForTier > 1 ? ((currentValue - 1) / (maxForTier - 1)) * 100 : 100}%, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'} ${maxForTier > 1 ? ((currentValue - 1) / (maxForTier - 1)) * 100 : 100}%)` }}
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={1}
+                            max={maxForTier}
+                            value={currentValue}
+                            disabled={locked}
+                            onChange={(e) => handleChange(parseInt(e.target.value, 10))}
+                            className={`flex-1 min-w-0 rounded-md border px-2 py-1 text-[11px] outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              isDark
+                                ? 'bg-white/5 border-white/10 text-white focus:border-white/30'
+                                : 'bg-white border-gray-200 text-gray-900 focus:border-blue-400'
+                            }`}
+                          />
+                          <button
+                            disabled={locked || currentValue === maxForTier}
+                            onClick={() => setCustomResultLimit(maxForTier)}
+                            className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              isDark ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                            }`}
+                          >
+                            Max
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{currentValue.toLocaleString()} / {maxForTier.toLocaleString()}</span>
+                          {currentValue > 50_000 && (
+                            <span className="text-[10px] font-medium text-amber-500">⚠ May be slow</span>
+                          )}
+                        </div>
+                      </div>
+                    </CardSection>
+                  )
+                })()}
+
+                {locked && (
+                  <p className={`text-[10px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Clear the drawn area to modify pre-search filters.
+                  </p>
+                )}
+              </div>
             </div>
           )
         })()}
 
         {/* Company List */}
+        {companies.length > 0 && (
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
           <CompanyList
             companies={companies}
@@ -1038,6 +1239,7 @@ export default function Home() {
             onPaywall={setPaywallFeature}
           />
         </div>
+        )}
 
         {/* Footer */}
         <div className={`flex-shrink-0 px-5 py-3 border-t flex items-center ${d.footer}`}>
@@ -1097,7 +1299,10 @@ export default function Home() {
         savedSearchCount={savedSearchCount}
         usageOpen={usageOpen}
         onUsageToggle={() => { const next = !usageOpen; setUsageOpen(next); try { localStorage.setItem('pdm_usage_open', next ? '1' : '0') } catch {} }}
-        onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id) => {
+        onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id, restoredPreQueryPresets, restoredPreQueryFilters, restoredPreQueryCustomIds) => {
+          setPreQueryPresets(restoredPreQueryPresets ?? [])
+          setPreQueryFilters(restoredPreQueryFilters ?? [])
+          setPreQueryCustomIds(restoredPreQueryCustomIds ?? [])
           handleSearch(geo)
           setFilters(restoredFilters)
           setSortCriteria(restoredSortCriteria)

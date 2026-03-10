@@ -126,13 +126,7 @@ We welcome contributions of all kinds — open an issue or submit a pull request
       - Events to listen for: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
       - Copy the **signing secret** (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
 
-5. **Set up the data source:**
-
-   **Option A — Sample CSV (quickstart, no database needed):**
-
-   A sample dataset is included at `data/economicref-france-sirene-v3-sample.csv`. The app falls back to it automatically when no database connection is configured. An amber banner in the sidebar indicates sample-data mode.
-
-   **Option B — Full dataset via PostGIS:**
+5. **Set up the database (PostGIS):**
 
    1. Create a Cloud SQL PostgreSQL 15 instance (or any PostgreSQL 15+ with PostGIS).
    2. Apply the schema:

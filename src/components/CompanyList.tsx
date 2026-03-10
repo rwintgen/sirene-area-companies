@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { PRESET_FILTERS, PRESET_GROUPS, applyPresets, type CustomPreset } from '@/lib/presets'
-import { canExportPremium, type UserTier } from '@/lib/usage'
+import { canExportPremium, canUsePresets, type UserTier } from '@/lib/usage'
+import { PresetPill, CardSection, SectionTitle } from '@/components/ui'
 
 interface Filter {
   column: string
@@ -335,7 +336,7 @@ function CompanyList({
           </div>
           <div className="relative">
             <button
-              onClick={() => setShowPresets(!showPresets)}
+              onClick={() => canUsePresets(userTier) ? setShowPresets(!showPresets) : onPaywall('pre-search filters')}
               className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Quick filters" data-tooltip-pos="left"
             >
@@ -405,7 +406,7 @@ function CompanyList({
               <span key={`sort-${i}`} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
                 <svg className={`w-2.5 h-2.5 ${sc.dir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
                 {i > 0 && <span className="opacity-50 mr-0.5">#{i + 1}</span>}
-                {sc.column.length > 18 ? sc.column.substring(0, 18) + '\u2026' : sc.column}
+                {sc.column.length > 18 ? sc.column.substring(0, 18) + '…' : sc.column}
                 <button onClick={() => removeSortCriterion(i)} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
                   <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -434,7 +435,7 @@ function CompanyList({
             })}
             {filters.map((f, i) => (
               <span key={`filter-${i}`} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
-                {f.column.length > 12 ? f.column.substring(0, 12) + '\u2026' : f.column} {f.negate ? 'NOT ' : ''}{f.operator}{f.operator !== 'empty' && f.value ? ` "${f.value.length > 8 ? f.value.substring(0, 8) + '\u2026' : f.value}"` : ''}
+                {f.column.length > 12 ? f.column.substring(0, 12) + '…' : f.column} {f.negate ? 'NOT ' : ''}{f.operator}{f.operator !== 'empty' && f.value ? ` "${f.value.length > 8 ? f.value.substring(0, 8) + '…' : f.value}"` : ''}
                 <button onClick={() => removeFilter(i)} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
                   <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -465,7 +466,7 @@ function CompanyList({
       )}
 
       {showSort && (
-        <div className={`rounded-lg border p-2 mb-2 space-y-1.5 ${t.filterBg}`}>
+        <CardSection isDark={isDark} className="mb-2 space-y-1.5">
           {sortCriteria.map((sc, i) => (
             <div key={i} className="flex items-center gap-1.5 min-w-0">
               <span className={`flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold w-3 text-center ${t.fieldLabel}`}>{i + 1}</span>
@@ -503,23 +504,26 @@ function CompanyList({
               + Add sort {sortCriteria.length > 0 ? 'criterion' : ''}
             </button>
           )}
-        </div>
+        </CardSection>
       )}
 
       {showPresets && (
-        <div className={`rounded-lg border p-2 mb-2 ${t.filterBg}`}>
+        <CardSection isDark={isDark} className="mb-2">
           {PRESET_GROUPS.map((group) => {
             const presets = PRESET_FILTERS.filter((p) => p.group === group)
             return (
               <div key={group} className="mb-1.5 last:mb-0">
-                <div className={`text-[9px] uppercase tracking-widest font-semibold mb-0.5 ${t.presetGroup}`}>{group}</div>
+                <SectionTitle isDark={isDark} className="mb-0.5">{group}</SectionTitle>
                 <div className="flex flex-wrap gap-1">
                   {presets.map((preset) => {
                     const isActive = activePresets.includes(preset.id)
                     const isPreQuery = disabledPresetIds.includes(preset.id)
                     return (
-                      <button
+                      <PresetPill
                         key={preset.id}
+                        label={preset.label}
+                        active={isActive}
+                        isDark={isDark}
                         disabled={isPreQuery}
                         onClick={() => {
                           if (isActive) {
@@ -530,11 +534,9 @@ function CompanyList({
                         }}
                         onMouseEnter={() => setHoveredPreset(preset.id)}
                         onMouseLeave={() => setHoveredPreset(null)}
-                        data-tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? t.presetTagActive : t.presetTag}`}
-                      >
-                        {preset.label}
-                      </button>
+                        tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
+                        tooltipPos={isPreQuery ? 'bottom-left' : undefined}
+                      />
                     )
                   })}
                 </div>
@@ -577,7 +579,11 @@ function CompanyList({
                     const isPreQuery = disabledPresetIds.includes(cp.id)
                     return (
                       <div key={cp.id} className="group/custom inline-flex items-center gap-0.5">
-                        <button
+                        <PresetPill
+                          label={cp.label}
+                          active={isActive}
+                          isDark={isDark}
+                          custom
                           disabled={isPreQuery}
                           onClick={() => {
                             if (isActive) {
@@ -586,11 +592,9 @@ function CompanyList({
                               onPresetsChange([...activePresets, cp.id])
                             }
                           }}
-                          data-tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
-                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? t.customTagActive : t.customTag}`}
-                        >
-                          {cp.label}
-                        </button>
+                          tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
+                          tooltipPos={isPreQuery ? 'bottom-left' : undefined}
+                        />
                         <button
                           onClick={() => {
                             onCustomPresetsChange(customPresets.filter((x) => x.id !== cp.id))
@@ -690,11 +694,11 @@ function CompanyList({
               Custom labels — upgrade to unlock
             </button>
           )}
-        </div>
+        </CardSection>
       )}
 
       {showFilters && (
-        <div className={`rounded-lg border p-2 mb-2 space-y-1.5 ${t.filterBg}`}>
+        <CardSection isDark={isDark} className="mb-2 space-y-1.5">
           {filters.map((f, i) => (
             <div key={i} className="flex items-center gap-1 min-w-0">
               <ColSelect
@@ -745,7 +749,7 @@ function CompanyList({
           >
             + Add filter
           </button>
-        </div>
+        </CardSection>
       )}
 
       <ul className="flex-1 space-y-1 overflow-y-auto">

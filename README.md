@@ -380,4 +380,5 @@ The model receives the full SIRENE record and is instructed to search for: compa
 - [ ] Add more auth features (forgot passsword, SSO sign-in, company sign in)
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout
+- [ ] Create landing page
 - [x] Add AI overview

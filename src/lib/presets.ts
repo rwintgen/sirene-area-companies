@@ -1,8 +1,8 @@
 /**
- * Preset filter definitions for the SIRENE v3 dataset.
+ * Quick filter definitions for the SIRENE v3 dataset.
  *
- * Each preset has a `test` predicate evaluated against the JSONB `fields`
- * of an establishment. Multiple active presets are ANDed together.
+ * Each filter has a `test` predicate evaluated against the JSONB `fields`
+ * of an establishment. Multiple active filters are ANDed together.
  *
  * Column references use the exact SIRENE v3 field names as they appear
  * in the OpenDataSoft enriched export (104 columns). Values are mostly
@@ -299,7 +299,7 @@ export interface CustomPreset {
   value: string
 }
 
-/** Builds a test function from a user-defined custom preset. */
+/** Builds a test function from a user-defined custom quick filter. */
 function customPresetTest(p: CustomPreset): (fields: Record<string, string>) => boolean {
   return (fields) => {
     const val = (fields[p.column] ?? '').toString().toLowerCase()
@@ -315,8 +315,8 @@ function customPresetTest(p: CustomPreset): (fields: Record<string, string>) => 
 }
 
 /**
- * Applies active presets to a company array.
- * All active presets are ANDed — a company must pass every active test.
+ * Applies active quick filters to a company array.
+ * All active filters are ANDed — a company must pass every active test.
  */
 export function applyPresets(
   companies: any[],

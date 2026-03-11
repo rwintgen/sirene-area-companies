@@ -76,9 +76,9 @@ const RESULT_LIMIT = MAX_ENTERPRISE_RESULT_LIMIT
 const NAF_DIV = `CASE WHEN (fields->>'Activité principale de l''établissement') ~ '^\\d{2}' THEN CAST(SUBSTRING(fields->>'Activité principale de l''établissement', 1, 2) AS INTEGER) END`
 
 /**
- * Maps each built-in preset ID to a parameterless SQL WHERE fragment.
+ * Maps each built-in quick filter ID to a parameterless SQL WHERE fragment.
  * All field names and values are hardcoded — no user input is interpolated.
- * Preset IDs are validated before lookup, so only known entries are ever used.
+ * Filter IDs are validated before lookup, so only known entries are ever used.
  */
 const PRESET_SQL: Record<string, string> = {
   active:       `fields->>'Etat administratif de l''établissement' = 'Actif' AND fields->>'Etat administratif de l''unité légale' = 'Active' AND (fields->>'Date de fermeture de l''établissement' IS NULL OR fields->>'Date de fermeture de l''établissement' = '') AND (fields->>'Date de fermeture de l''unité légale' IS NULL OR fields->>'Date de fermeture de l''unité légale' = '')`,
@@ -96,7 +96,7 @@ const PRESET_SQL: Record<string, string> = {
   '50plus':     `CAST(NULLIF(fields->>'Tranche de l''effectif de l''établissement triable', '') AS INTEGER) >= 21`,
   ess:          `fields->>'Economie sociale et solidaire unité légale' = 'O'`,
   mission:      `fields->>'Société à mission unité légale' = 'O'`,
-  // Sector presets — NAF Rev2 division ranges (see nafSection() in presets.ts)
+  // Sector quick filters — NAF Rev2 division ranges (see nafSection() in presets.ts)
   agriculture:  `(${NAF_DIV}) BETWEEN 1 AND 3`,
   industry:     `(${NAF_DIV}) BETWEEN 10 AND 33`,
   construction: `(${NAF_DIV}) BETWEEN 40 AND 43`,
@@ -193,22 +193,42 @@ export async function GET() {
 /** POST: accepts a GeoJSON geometry and an optional result limit, returns companies within that area. Streams results as SSE. */
 export async function POST(req: NextRequest) {
   try {
-    const { geometry, limit: requestedLimit, presets: rawPresets, filters: rawFilters } = await req.json()
+    const { geometry, limit: requestedLimit, presets: rawPresets, filters: rawFilters, connectorId, connectorOrgId } = await req.json()
     const limit = typeof requestedLimit === 'number' && requestedLimit > 0
       ? Math.min(requestedLimit, RESULT_LIMIT)
       : RESULT_LIMIT
     const presets: string[] = Array.isArray(rawPresets)
       ? rawPresets.filter((id: unknown) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
       : []
-    const filters = validateFilters(rawFilters, dbColumnsCache)
+    const isConnectorRequest = typeof connectorId === 'string' && typeof connectorOrgId === 'string'
+    const filters = validateFilters(rawFilters, isConnectorRequest ? null : dbColumnsCache)
 
     if (!geometry) return NextResponse.json({ companies: [] })
     if (!geometry.coordinates || !Array.isArray(geometry.coordinates)) {
       return NextResponse.json({ error: 'Invalid geometry' }, { status: 400 })
     }
 
-    let searchCountAfter: number | null = null
+    let connectorMeta: { id: string; columns: string[] } | null = null
     const token = req.headers.get('authorization')?.replace('Bearer ', '')
+
+    if (typeof connectorId === 'string' && typeof connectorOrgId === 'string' && token) {
+      try {
+        const decoded = await getAdminAuth().verifyIdToken(token)
+        const profile = await getAdminDb().collection('userProfiles').doc(decoded.uid).get()
+        if (profile.data()?.orgId === connectorOrgId) {
+          const connDoc = await getAdminDb()
+            .collection('organizations').doc(connectorOrgId)
+            .collection('connectors').doc(connectorId)
+            .get()
+          if (connDoc.exists) {
+            const data = connDoc.data()!
+            connectorMeta = { id: connectorId, columns: data.columns ?? [] }
+          }
+        }
+      } catch {}
+    }
+
+    let searchCountAfter: number | null = null
     if (token) {
       try {
         searchCountAfter = await enforceAndIncrementSearchCount(token)
@@ -236,54 +256,102 @@ export async function POST(req: NextRequest) {
           const geoJson = JSON.stringify(geometry)
           const effectiveLimit = Math.min(Math.max(limit, 1), RESULT_LIMIT)
 
-          const presetClauses = presets
-            .filter((id) => Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
-            .map((id) => PRESET_SQL[id])
-          const wherePresets = presetClauses.length > 0 ? ` AND (${presetClauses.join(') AND (')})` : ''
-          const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
-          const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
+          if (connectorMeta) {
+            const connFilters = filters.filter((f) => connectorMeta!.columns.includes(f.column))
+            const { clauses: filterClauses, params: filterParams } = buildFilterSQL(connFilters, 3)
+            const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
 
-          controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
+            controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
 
-          await client.query('BEGIN')
-          await client.query(
-            `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters} LIMIT $2`,
-            [geoJson, effectiveLimit, ...filterParams]
-          )
+            await client.query('BEGIN')
+            await client.query(
+              `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM connector_rows WHERE connector_id = $1 AND ST_Contains(ST_GeomFromGeoJSON($2), geom)${whereFilters} LIMIT $3`,
+              [connectorMeta.id, geoJson, effectiveLimit, ...filterParams]
+            )
 
-          const BATCH_SIZE = 100
-          let loaded = 0
+            const BATCH_SIZE = 100
+            let loaded = 0
+            let detectedColumns: string[] | null = null
 
-          while (loaded < effectiveLimit) {
-            const fetchSize = Math.min(BATCH_SIZE, effectiveLimit - loaded)
-            const batch = await client.query(`FETCH ${fetchSize} FROM search_cursor`)
-            if (batch.rows.length === 0) break
-
-            if (!dbColumnsCache && batch.rows.length > 0) {
-              dbColumnsCache = Object.keys(batch.rows[0].fields)
+            while (loaded < effectiveLimit) {
+              const fetchSize = Math.min(BATCH_SIZE, effectiveLimit - loaded)
+              const batch = await client.query(`FETCH ${fetchSize} FROM search_cursor`)
+              if (batch.rows.length === 0) break
+              if (!detectedColumns && batch.rows.length > 0) {
+                detectedColumns = Object.keys(batch.rows[0].fields)
+              }
+              loaded += batch.rows.length
+              try {
+                controller.enqueue(sseSend({
+                  type: 'batch',
+                  companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+                  loaded,
+                }))
+              } catch { break }
             }
 
-            loaded += batch.rows.length
-            try {
-              controller.enqueue(sseSend({
-                type: 'batch',
-                companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
-                loaded,
-              }))
-            } catch { break }
+            const truncated = loaded >= effectiveLimit
+            console.log(`[connector-stream] Streamed ${loaded} connector rows (${connectorMeta.id})${truncated ? ' (truncated)' : ''}.`)
+
+            controller.enqueue(sseSend({
+              type: 'complete',
+              columns: detectedColumns ?? connectorMeta.columns,
+              truncated,
+              resultLimit: effectiveLimit,
+              searchCountAfter,
+              activePresets: [],
+              isConnector: true,
+            }))
+          } else {
+            const presetClauses = presets
+              .filter((id) => Object.prototype.hasOwnProperty.call(PRESET_SQL, id))
+              .map((id) => PRESET_SQL[id])
+            const wherePresets = presetClauses.length > 0 ? ` AND (${presetClauses.join(') AND (')})` : ''
+            const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
+            const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
+
+            controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
+
+            await client.query('BEGIN')
+            await client.query(
+              `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters} LIMIT $2`,
+              [geoJson, effectiveLimit, ...filterParams]
+            )
+
+            const BATCH_SIZE = 100
+            let loaded = 0
+
+            while (loaded < effectiveLimit) {
+              const fetchSize = Math.min(BATCH_SIZE, effectiveLimit - loaded)
+              const batch = await client.query(`FETCH ${fetchSize} FROM search_cursor`)
+              if (batch.rows.length === 0) break
+
+              if (!dbColumnsCache && batch.rows.length > 0) {
+                dbColumnsCache = Object.keys(batch.rows[0].fields)
+              }
+
+              loaded += batch.rows.length
+              try {
+                controller.enqueue(sseSend({
+                  type: 'batch',
+                  companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+                  loaded,
+                }))
+              } catch { break }
+            }
+
+            const truncated = loaded >= effectiveLimit
+            console.log(`[postgis-stream] Streamed ${loaded} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (quick-filters: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
+
+            controller.enqueue(sseSend({
+              type: 'complete',
+              columns: dbColumnsCache ?? [],
+              truncated,
+              resultLimit: effectiveLimit,
+              searchCountAfter,
+              activePresets: presets,
+            }))
           }
-
-          const truncated = loaded >= effectiveLimit
-          console.log(`[postgis-stream] Streamed ${loaded} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (presets: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
-
-          controller.enqueue(sseSend({
-            type: 'complete',
-            columns: dbColumnsCache ?? [],
-            truncated,
-            resultLimit: effectiveLimit,
-            searchCountAfter,
-            activePresets: presets,
-          }))
         } catch (err) {
           console.error('[postgis-stream] Error:', err)
           try { controller.enqueue(sseSend({ type: 'error', message: String(err) })) } catch {}

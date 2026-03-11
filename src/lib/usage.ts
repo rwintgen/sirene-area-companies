@@ -160,7 +160,7 @@ export function canExportPremium(tier: UserTier): boolean {
   return tier !== 'free'
 }
 
-/** Pre-search preset filters require at least Individual tier. */
+/** Pre-search quick filters require at least Individual tier. */
 export function canUsePresets(tier: UserTier): boolean {
   return tier === 'individual' || tier === 'enterprise'
 }

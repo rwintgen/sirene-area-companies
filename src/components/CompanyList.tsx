@@ -48,7 +48,7 @@ function ColSelect({ value, onChange, columns, className }: {
 /**
  * Paginated, sortable, filterable list of establishments.
  * Supports multi-criteria sorting (up to 5 levels), filter conditions,
- * and preset quick-filters. Renders a 20-items-per-page paginated view.
+ * and quick filters. Renders a 20-items-per-page paginated view.
  */
 function CompanyList({
   companies,
@@ -68,6 +68,7 @@ function CompanyList({
   onCustomPresetsChange,
   disabledPresetIds = [],
   userTier,
+  orgQuickFilters = [],
   canSave,
   hasSearchArea,
   onSaveSearch,
@@ -91,6 +92,7 @@ function CompanyList({
   onCustomPresetsChange: (presets: CustomPreset[]) => void
   disabledPresetIds?: string[]
   userTier: UserTier
+  orgQuickFilters?: CustomPreset[]
   canSave: boolean
   hasSearchArea: boolean
   onSaveSearch: (name: string) => Promise<void>
@@ -137,7 +139,7 @@ function CompanyList({
       })
     }
 
-    result = applyPresets(result, activePresets, customPresets)
+    result = applyPresets(result, activePresets, [...customPresets, ...orgQuickFilters])
 
     if (sortCriteria.length > 0) {
       result.sort((a, b) => {
@@ -543,11 +545,11 @@ function CompanyList({
               </div>
             )
           })}
-          {hoveredPreset && (
-            <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>
-              {PRESET_FILTERS.find((p) => p.id === hoveredPreset)?.description}
-            </p>
-          )}
+          {hoveredPreset && (() => {
+            const builtIn = PRESET_FILTERS.find((p) => p.id === hoveredPreset)
+            if (builtIn) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{builtIn.description}</p>
+            return null
+          })()}
           {activePresets.length > 0 && (
             <button
               onClick={() => onPresetsChange([])}
@@ -555,6 +557,34 @@ function CompanyList({
             >
               Clear all tags
             </button>
+          )}
+
+          {orgQuickFilters.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+              <div className={`text-[9px] uppercase tracking-widest font-semibold mb-0.5 ${isDark ? 'text-amber-500/70' : 'text-amber-600/70'}`}>Organization</div>
+              <div className="flex flex-wrap gap-1">
+                {orgQuickFilters.map((oq) => {
+                  const isActive = activePresets.includes(oq.id)
+                  const isPreQuery = disabledPresetIds.includes(oq.id)
+                  return (
+                    <PresetPill
+                      key={oq.id}
+                      label={oq.label}
+                      active={isActive}
+                      isDark={isDark}
+                      org
+                      disabled={isPreQuery}
+                      onClick={() => {
+                        if (isActive) onPresetsChange(activePresets.filter((id) => id !== oq.id))
+                        else onPresetsChange([...activePresets, oq.id])
+                      }}
+                      tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
+                      tooltipPos={isPreQuery ? 'bottom-left' : undefined}
+                    />
+                  )
+                })}
+              </div>
+            </div>
           )}
 
           {/* Custom labels section */}

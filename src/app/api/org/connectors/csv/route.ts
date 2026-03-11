@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminAuth } from '@/lib/firebase-admin'
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin'
 import { getOrg, getMember } from '@/lib/org'
 import { getPool } from '@/lib/db'
+import { FieldValue } from 'firebase-admin/firestore'
 
 const MAX_ROWS = 10_000
-const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_BYTES = 10 * 1024 * 1024
+const BATCH_INSERT = 500
 
 /**
  * POST /api/org/connectors/csv
@@ -12,10 +14,13 @@ const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
  * Multipart form data:
  *   - file: CSV file (max 10 MB / 10 000 rows)
  *   - orgId: string
- *   - siretColumn: column name that holds SIRET numbers
+ *   - name: display name for the connector
+ *   - latColumn: column name containing latitude values
+ *   - lonColumn: column name containing longitude values
  *
- * Returns matched rows enriched with SIRENE fields and a list of unmatched SIRETs.
- * Only organisation owners and admins may call this endpoint.
+ * Parses the CSV, validates lat/lon coordinates, inserts all valid rows
+ * into the PostGIS `connector_rows` table, and stores connector metadata
+ * in Firestore.
  */
 export async function POST(req: NextRequest) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
@@ -37,11 +42,13 @@ export async function POST(req: NextRequest) {
   }
 
   const orgId = formData.get('orgId')?.toString()
-  const siretColumn = formData.get('siretColumn')?.toString()
+  const name = formData.get('name')?.toString()?.trim()
+  const latColumn = formData.get('latColumn')?.toString()
+  const lonColumn = formData.get('lonColumn')?.toString()
   const file = formData.get('file') as File | null
 
-  if (!orgId || !siretColumn || !file) {
-    return NextResponse.json({ error: 'orgId, siretColumn, and file are required' }, { status: 400 })
+  if (!orgId || !latColumn || !lonColumn || !file || !name) {
+    return NextResponse.json({ error: 'orgId, latColumn, lonColumn, name, and file are required' }, { status: 400 })
   }
 
   if (file.size > MAX_BYTES) {
@@ -60,57 +67,96 @@ export async function POST(req: NextRequest) {
   const rows = parseCSV(text)
 
   if (rows.length === 0) return NextResponse.json({ error: 'CSV is empty or could not be parsed' }, { status: 400 })
-  if (!rows[0].hasOwnProperty(siretColumn)) {
-    return NextResponse.json({ error: `Column "${siretColumn}" not found in CSV` }, { status: 400 })
+  if (!Object.prototype.hasOwnProperty.call(rows[0], latColumn)) {
+    return NextResponse.json({ error: `Column "${latColumn}" not found in CSV` }, { status: 400 })
+  }
+  if (!Object.prototype.hasOwnProperty.call(rows[0], lonColumn)) {
+    return NextResponse.json({ error: `Column "${lonColumn}" not found in CSV` }, { status: 400 })
   }
   if (rows.length > MAX_ROWS) {
     return NextResponse.json({ error: `CSV exceeds ${MAX_ROWS.toLocaleString()} row limit` }, { status: 413 })
   }
 
-  const siretSet = new Set<string>()
-  for (const r of rows) {
-    const s = cleanSiret(r[siretColumn])
-    if (s) siretSet.add(s)
-  }
-  const sirets = Array.from(siretSet)
+  const headers = Object.keys(rows[0])
+  const fieldColumns = headers.filter((h) => h !== latColumn && h !== lonColumn)
 
-  // Query PostGIS for matching establishments
   const pool = await getPool()
-  const { rows: dbRows } = await pool.query<{ siret: string; fields: Record<string, string> }>(
-    `SELECT siret, fields FROM establishments WHERE siret = ANY($1)`,
-    [sirets],
-  )
 
-  const enrichmentMap = new Map<string, Record<string, string>>()
-  for (const row of dbRows) enrichmentMap.set(row.siret, row.fields)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS connector_rows (
+      id            SERIAL PRIMARY KEY,
+      connector_id  TEXT NOT NULL,
+      org_id        TEXT NOT NULL,
+      lat           DOUBLE PRECISION NOT NULL,
+      lon           DOUBLE PRECISION NOT NULL,
+      geom          GEOMETRY(Point, 4326) NOT NULL,
+      fields        JSONB NOT NULL DEFAULT '{}'
+    )
+  `)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_connector_rows_connector ON connector_rows (connector_id)`)
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_connector_rows_geom ON connector_rows USING GIST (geom)`)
 
-  const matched: Array<Record<string, string>> = []
-  const unmatched: string[] = []
+  const connectorRef = getAdminDb()
+    .collection('organizations').doc(orgId)
+    .collection('connectors').doc()
+  const connectorId = connectorRef.id
 
-  for (const row of rows) {
-    const siret = cleanSiret(row[siretColumn])
-    const enrichment = siret ? enrichmentMap.get(siret) : undefined
-    if (enrichment) {
-      matched.push({ ...row, ...enrichment, _siret: siret })
-    } else if (siret) {
-      unmatched.push(siret)
+  let insertedCount = 0
+  let skippedCount = 0
+
+  for (let i = 0; i < rows.length; i += BATCH_INSERT) {
+    const batch = rows.slice(i, i + BATCH_INSERT)
+    const values: string[] = []
+    const params: any[] = []
+    let p = 1
+
+    for (const row of batch) {
+      const lat = parseFloat(row[latColumn])
+      const lon = parseFloat(row[lonColumn])
+      if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        skippedCount++
+        continue
+      }
+      const fields: Record<string, string> = {}
+      for (const col of fieldColumns) fields[col] = row[col] ?? ''
+      values.push(`($${p}, $${p + 1}, $${p + 2}, $${p + 3}, ST_SetSRID(ST_MakePoint($${p + 3}, $${p + 2}), 4326), $${p + 4})`)
+      params.push(connectorId, orgId, lat, lon, JSON.stringify(fields))
+      p += 5
+      insertedCount++
+    }
+
+    if (values.length > 0) {
+      await pool.query(
+        `INSERT INTO connector_rows (connector_id, org_id, lat, lon, geom, fields) VALUES ${values.join(', ')}`,
+        params,
+      )
     }
   }
 
+  if (insertedCount === 0) {
+    return NextResponse.json({ error: 'No valid rows found. Ensure latitude and longitude columns contain valid numeric coordinates.' }, { status: 400 })
+  }
+
+  await connectorRef.set({
+    name,
+    columns: fieldColumns,
+    rowCount: insertedCount,
+    skippedCount,
+    totalRows: rows.length,
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: uid,
+  })
+
   return NextResponse.json({
-    total: rows.length,
-    matchedCount: matched.length,
-    unmatchedCount: unmatched.length,
-    matched,
-    unmatched,
+    id: connectorId,
+    name,
+    columns: fieldColumns,
+    rowCount: insertedCount,
+    skippedCount,
+    totalRows: rows.length,
   })
 }
 
-function cleanSiret(raw: string | undefined): string {
-  return (raw ?? '').replace(/\s/g, '').replace(/^'/, '')
-}
-
-/** Minimal CSV parser: handles quoted fields with embedded commas/newlines. */
 function parseCSV(text: string): Array<Record<string, string>> {
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
   if (lines.length < 2) return []

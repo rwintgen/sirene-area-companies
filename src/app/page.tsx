@@ -82,6 +82,7 @@ export default function Home() {
   const [orgId, setOrgId] = useState<string | null>(null)
   const [orgRole, setOrgRole] = useState<'owner' | 'admin' | 'member' | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
+  const [orgIconUrl, setOrgIconUrl] = useState<string | null>(null)
   const [bootSteps, setBootSteps] = useState({ auth: false, columns: false, preferences: false, account: false })
 
   const prefsKey = (uid: string) => `prefs_${uid}`
@@ -113,8 +114,20 @@ export default function Home() {
   const batchTimestamps = useRef<{ loaded: number; time: number }[]>([])
   const searchTotal = useRef<number>(0)
   const [hoveredPQPreset, setHoveredPQPreset] = useState<string | null>(null)
+  const [connectorSource, setConnectorSource] = useState<string | null>(null)
+  const [orgConnectors, setOrgConnectors] = useState<{ id: string; name: string; columns: string[]; rowCount: number }[]>([])
+  const [orgConnectorsLoaded, setOrgConnectorsLoaded] = useState(false)
+  const [orgQuickFilters, setOrgQuickFilters] = useState<CustomPreset[]>([])
+  const [preQueryOrgIds, setPreQueryOrgIds] = useState<string[]>([])
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark'
+  const activeFilterColumns = useMemo(() => {
+    if (connectorSource) {
+      const conn = orgConnectors.find((c) => c.id === connectorSource)
+      if (conn?.columns?.length) return conn.columns
+    }
+    return displayColumns
+  }, [connectorSource, orgConnectors, displayColumns])
 
   /** Listen to OS color-scheme changes for system theme mode. */
   useEffect(() => {
@@ -159,12 +172,29 @@ export default function Home() {
             setOrgId(data.org.orgId ?? null)
             setOrgRole(data.org.orgRole ?? null)
             setOrgName(data.org.orgName ?? null)
+            setOrgIconUrl(data.org.orgIconUrl ?? null)
+            if (Array.isArray(data.org.orgCustomQuickFilters)) {
+              setOrgQuickFilters(data.org.orgCustomQuickFilters)
+            }
           }
         })
         .catch(() => {})
         .finally(() => setBootSteps((s) => ({ ...s, account: true })))
     ).catch(() => setBootSteps((s) => ({ ...s, account: true })))
   }, [user])
+
+  useEffect(() => {
+    if (!user || !orgId || userTier !== 'enterprise' || orgConnectorsLoaded) return
+    user.getIdToken().then((token) =>
+      fetch(`/api/org/connectors?orgId=${orgId}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.connectors) setOrgConnectors(data.connectors)
+        })
+        .catch(() => {})
+        .finally(() => setOrgConnectorsLoaded(true))
+    ).catch(() => {})
+  }, [user, orgId, userTier, orgConnectorsLoaded])
 
   /**
    * Load user preferences on auth change.
@@ -312,11 +342,19 @@ export default function Home() {
         ...customPresets
           .filter((cp) => preQueryCustomIds.includes(cp.id))
           .map((cp) => ({ column: cp.column, operator: cp.operator, negate: cp.negate, value: cp.value })),
+        ...orgQuickFilters
+          .filter((oq) => preQueryOrgIds.includes(oq.id))
+          .map((oq) => ({ column: oq.column, operator: oq.operator, negate: oq.negate, value: oq.value })),
       ]
+      const searchBody: Record<string, any> = { geometry, limit: tierLimit, presets: preQueryPresets, filters: allFilters }
+      if (connectorSource && orgId) {
+        searchBody.connectorId = connectorSource
+        searchBody.connectorOrgId = orgId
+      }
       const response = await fetch('/api/search', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ geometry, limit: tierLimit, presets: preQueryPresets, filters: allFilters }),
+        body: JSON.stringify(searchBody),
         signal: controller.signal,
       })
       if (response.status === 429) {
@@ -397,7 +435,7 @@ export default function Home() {
       setActiveSearchId(null)
       if (typeof meta.truncated === 'boolean') setIsTruncated(meta.truncated)
       if (typeof meta.resultLimit === 'number') setResultLimit(meta.resultLimit)
-      if (meta.columns && columns.length === 0) {
+      if (meta.columns) {
         setColumns(meta.columns)
         const display = meta.columns.filter((c: string) => !HIDDEN_COLS.includes(c))
         setDisplayColumns(display)
@@ -433,9 +471,10 @@ export default function Home() {
       preQueryPresetsJson: JSON.stringify(preQueryPresets),
       preQueryFiltersJson: JSON.stringify(preQueryFilters),
       preQueryCustomIdsJson: JSON.stringify(preQueryCustomIds),
+      preQueryOrgIdsJson: JSON.stringify(preQueryOrgIds),
       timestamp: new Date(),
     })
-  }, [user, searchArea, filters, sortCriteria, activePresets, preQueryPresets, preQueryFilters, preQueryCustomIds, userTier, savedSearchCount])
+  }, [user, searchArea, filters, sortCriteria, activePresets, preQueryPresets, preQueryFilters, preQueryCustomIds, preQueryOrgIds, userTier, savedSearchCount])
 
   const handleSignInPrompt = useCallback(() => { setAuthOpen(true) }, [])
 
@@ -461,9 +500,9 @@ export default function Home() {
         })
       }
     }
-    result = applyPresets(result, activePresets, customPresets)
+    result = applyPresets(result, activePresets, [...customPresets, ...orgQuickFilters])
     return result
-  }, [companies, filters, activePresets, customPresets])
+  }, [companies, filters, activePresets, customPresets, orgQuickFilters])
 
   const enterpriseNoOrg = userTier === 'enterprise' && !orgId
 
@@ -871,15 +910,19 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
-              {(orgRole === 'owner' || orgRole === 'admin' || (!orgId && userTier === 'enterprise')) && (
+              {(orgId || (!orgId && userTier === 'enterprise')) && (
                 <a
                   href="/org"
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${d.iconBtn}`}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all overflow-hidden ${d.iconBtn}`}
                   data-tooltip={orgId ? 'Organization' : 'Set up organization'} data-tooltip-pos="bottom"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                  </svg>
+                  {orgIconUrl ? (
+                    <img src={orgIconUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full rounded-lg object-cover" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                    </svg>
+                  )}
                 </a>
               )}
               {/* Profile */}
@@ -938,7 +981,7 @@ export default function Home() {
           }
 
           const presetsUnlocked = canUsePresets(userTier)
-          const totalActive = preQueryPresets.length + preQueryFilters.length + preQueryCustomIds.length
+          const totalActive = preQueryPresets.length + preQueryFilters.length + preQueryCustomIds.length + preQueryOrgIds.length
           const locked = isLoading || !!searchArea
           const hasResults = companies.length > 0
           const hoveredDef = hoveredPQPreset ? PRESET_FILTERS.find((p) => p.id === hoveredPQPreset) ?? customPresets.find((p) => p.id === hoveredPQPreset) : null
@@ -974,6 +1017,7 @@ export default function Home() {
           if (hasResults) {
             const activeBuiltIn = PRESET_FILTERS.filter((p) => preQueryPresets.includes(p.id))
             const activeCustom = customPresets.filter((cp) => preQueryCustomIds.includes(cp.id))
+            const activeOrg = orgQuickFilters.filter((oq) => preQueryOrgIds.includes(oq.id))
             return (
               <div className={`flex-shrink-0 border-b px-5 py-2.5 ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -983,6 +1027,14 @@ export default function Home() {
                   {locked && (
                     <span className={`text-[9px] italic flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>locked</span>
                   )}
+                  {connectorSource && (() => {
+                    const conn = orgConnectors.find((c) => c.id === connectorSource)
+                    return conn ? (
+                      <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-amber-500/20 text-amber-300 border-amber-400/40' : 'bg-amber-50 text-amber-700 border-amber-300'}`}>
+                        {conn.name}
+                      </span>
+                    ) : null
+                  })()}
                   {activeBuiltIn.map((p) => (
                     <span key={p.id} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-white/15 text-white border-white/25' : 'bg-violet-50 text-violet-700 border-violet-300'}`}>
                       {p.label}
@@ -991,6 +1043,11 @@ export default function Home() {
                   {activeCustom.map((cp) => (
                     <span key={cp.id} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50' : 'bg-emerald-600 border-emerald-600 text-white'}`}>
                       {cp.label}
+                    </span>
+                  ))}
+                  {activeOrg.map((oq) => (
+                    <span key={oq.id} className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${isDark ? 'bg-amber-500/25 text-amber-300 border-amber-400/50' : 'bg-amber-500 border-amber-500 text-white'}`}>
+                      {oq.label}
                     </span>
                   ))}
                   {preQueryFilters.map((f, i) => (
@@ -1025,7 +1082,7 @@ export default function Home() {
                   </div>
                   {totalActive > 0 && !locked && (
                     <button
-                      onClick={() => { setPreQueryPresets([]); setPreQueryFilters([]); setPreQueryCustomIds([]) }}
+                      onClick={() => { setPreQueryPresets([]); setPreQueryFilters([]); setPreQueryCustomIds([]); setPreQueryOrgIds([]) }}
                       className={`text-[10px] font-medium ${isDark ? 'text-gray-600 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
                     >
                       Clear all
@@ -1036,9 +1093,30 @@ export default function Home() {
                   These filters run server-side before the result limit is applied, giving you more targeted results within your quota. Complex filters may increase query time.
                 </p>
 
-                {/* Presets card */}
+                {userTier === 'enterprise' && orgConnectors.length > 0 && (
+                  <CardSection isDark={isDark}>
+                    <SectionTitle isDark={isDark} className="mb-1">Source</SectionTitle>
+                    <select
+                      value={connectorSource ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value || null
+                        setConnectorSource(v)
+                        if (v) setPreQueryPresets([])
+                      }}
+                      disabled={locked}
+                      className={`w-full text-[11px] px-2.5 py-1.5 rounded-lg border outline-none ${isDark ? 'bg-gray-800 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'} disabled:opacity-50`}
+                    >
+                      <option value="">Public data (SIRENE)</option>
+                      {orgConnectors.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.rowCount.toLocaleString()})</option>
+                      ))}
+                    </select>
+                  </CardSection>
+                )}
+
+                {/* Quick filters card */}
                 <CardSection isDark={isDark}>
-                  {PRESET_GROUPS.map((group) => {
+                  {!connectorSource && PRESET_GROUPS.map((group) => {
                     const presets = PRESET_FILTERS.filter((p) => p.group === group)
                     return (
                       <div key={group} className="mb-1.5 last:mb-0">
@@ -1063,6 +1141,27 @@ export default function Home() {
                       </div>
                     )
                   })}
+                  {orgQuickFilters.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                      <SectionTitle isDark={isDark} className={isDark ? '!text-amber-500/70' : '!text-amber-600/70'}>Organization</SectionTitle>
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {orgQuickFilters.map((oq) => {
+                          const active = preQueryOrgIds.includes(oq.id)
+                          return (
+                            <PresetPill
+                              key={oq.id}
+                              label={oq.label}
+                              active={active}
+                              isDark={isDark}
+                              org
+                              disabled={locked}
+                              onClick={() => setPreQueryOrgIds((prev) => active ? prev.filter((id) => id !== oq.id) : [...prev, oq.id])}
+                            />
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                     <div className="flex items-center justify-between mb-0.5">
                       <SectionTitle isDark={isDark} className={isDark ? '!text-emerald-500/70' : '!text-emerald-600/70'}>Custom</SectionTitle>
@@ -1070,7 +1169,7 @@ export default function Home() {
                         <button
                           onClick={() => {
                             setPqCustomForm(!pqCustomForm)
-                            if (!pqCustomForm && displayColumns.length > 0) setPqCustomColumn(displayColumns[0])
+                            if (!pqCustomForm && activeFilterColumns.length > 0) setPqCustomColumn(activeFilterColumns[0])
                           }}
                           className={`text-[10px] font-medium ${isDark ? 'text-emerald-400/60 hover:text-emerald-400' : 'text-emerald-600/60 hover:text-emerald-600'}`}
                         >
@@ -1125,7 +1224,7 @@ export default function Home() {
                             onChange={(e) => setPqCustomColumn(e.target.value)}
                             className={`flex-1 min-w-0 rounded border h-[26px] text-xs outline-none ${isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
                           >
-                            {displayColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+                            {activeFilterColumns.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <button
                             onClick={() => setPqCustomNegate(!pqCustomNegate)}
@@ -1177,7 +1276,7 @@ export default function Home() {
                             isDark ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                           }`}
                         >
-                          Create preset
+                          Create quick filter
                         </button>
                       </div>
                     )}
@@ -1201,7 +1300,7 @@ export default function Home() {
                           isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'
                         }`}
                       >
-                        {displayColumns.map((c) => <option key={c} value={c}>{c}</option>)}
+                        {activeFilterColumns.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                       <button
                         disabled={locked}
@@ -1253,7 +1352,7 @@ export default function Home() {
                   {!locked && (
                     <button
                       onClick={() => {
-                        const col = displayColumns.length > 0 ? displayColumns[0] : ''
+                        const col = activeFilterColumns.length > 0 ? activeFilterColumns[0] : ''
                         setPreQueryFilters([...preQueryFilters, { column: col, operator: 'contains', negate: false, value: '' }])
                       }}
                       className={`flex items-center text-[10px] font-medium h-6 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
@@ -1349,8 +1448,9 @@ export default function Home() {
             onPresetsChange={setActivePresets}
             customPresets={customPresets}
             onCustomPresetsChange={setCustomPresets}
-            disabledPresetIds={[...preQueryPresets, ...preQueryCustomIds]}
+            disabledPresetIds={[...preQueryPresets, ...preQueryCustomIds, ...preQueryOrgIds]}
             userTier={userTier}
+            orgQuickFilters={orgQuickFilters}
             canSave={!!user && !!searchArea}
             hasSearchArea={!!searchArea}
             onSaveSearch={handleSaveSearch}
@@ -1449,10 +1549,11 @@ export default function Home() {
         savedSearchCount={savedSearchCount}
         usageOpen={usageOpen}
         onUsageToggle={() => { const next = !usageOpen; setUsageOpen(next); try { localStorage.setItem('pdm_usage_open', next ? '1' : '0') } catch {} }}
-        onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id, restoredPreQueryPresets, restoredPreQueryFilters, restoredPreQueryCustomIds) => {
+        onRestoreSearch={(geo, restoredFilters, restoredSortCriteria, restoredPresets, id, restoredPreQueryPresets, restoredPreQueryFilters, restoredPreQueryCustomIds, restoredPreQueryOrgIds) => {
           setPreQueryPresets(restoredPreQueryPresets ?? [])
           setPreQueryFilters(restoredPreQueryFilters ?? [])
           setPreQueryCustomIds(restoredPreQueryCustomIds ?? [])
+          setPreQueryOrgIds(restoredPreQueryOrgIds ?? [])
           handleSearch(geo)
           setFilters(restoredFilters)
           setSortCriteria(restoredSortCriteria)
@@ -1471,6 +1572,7 @@ export default function Home() {
         orgId={orgId}
         orgRole={orgRole}
         orgName={orgName}
+        orgIconUrl={orgIconUrl}
       />
     )}
 

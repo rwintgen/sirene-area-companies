@@ -371,12 +371,13 @@ The model receives the full SIRENE record and is instructed to search for: compa
 - [ ] Import full SIRENE dataset into Cloud SQL
 - [x] Increase result cap beyond 5 000 — now up to 50,000 results (individual plan)
 - [x] Cluster map pins for performance with large result sets
-- [x] Audit and fix all preset filter labels
+- [x] Audit and fix all quick filter labels
 - [x] Add possibility to create custom filter labels
 - [x] Add pre-search labels to filter results in the back-end
 - [x] Add pre-search labels to filter results in the back-end
 - [x] Improve Loading elements (while querying and loading user data)
 - [ ] Create company dashboard (seats/permissions management, org settings)
+- [ ] Create private CRM dashboard
 - [ ] Add more auth features (forgot passsword, SSO sign-in, company sign in)
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout

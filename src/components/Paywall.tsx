@@ -189,6 +189,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         { text: 'Unlimited AI overviews', included: true },
         { text: 'Plug in your data', included: true },
         { text: 'Connect your enterprise software', included: true },
+        { text: 'Premium 24/7 support', included: true },
       ],
     },
   ]

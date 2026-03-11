@@ -34,58 +34,78 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const email = typeof body.email === 'string' ? body.email.toLowerCase().trim() : ''
-  const role = body.role === 'admin' ? 'admin' : 'member'
+  try {
+    const body = await req.json()
+    const email = typeof body.email === 'string' ? body.email.toLowerCase().trim() : ''
+    const role = body.role === 'admin' ? 'admin' : 'member'
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
+    }
+
+    if (email === ctx.member.email?.toLowerCase()) {
+      return NextResponse.json({ error: 'You cannot invite yourself' }, { status: 400 })
+    }
+
+    const existingMemberSnap = await getAdminDb()
+      .collection('organizations').doc(ctx.orgId)
+      .collection('members')
+      .where('email', '==', email)
+      .limit(1)
+      .get()
+
+    if (!existingMemberSnap.empty) {
+      return NextResponse.json({ error: 'This user is already a member of the organization' }, { status: 409 })
+    }
+
+    if (role === 'admin' && ctx.member.role !== 'owner') {
+      return NextResponse.json({ error: 'Only the owner can invite admins' }, { status: 403 })
+    }
+
+    const org = await getOrg(ctx.orgId)
+    if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+
+    const [count, pending] = await Promise.all([
+      memberCount(ctx.orgId),
+      listInvitations(ctx.orgId, 'pending'),
+    ])
+    if (count + pending.length >= 1000) {
+      return NextResponse.json({ error: 'Organization has reached the maximum seat limit' }, { status: 409 })
+    }
+
+    const existingSnap = await getAdminDb()
+      .collection('organizations').doc(ctx.orgId)
+      .collection('invitations')
+      .where('email', '==', email)
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get()
+
+    if (!existingSnap.empty) {
+      return NextResponse.json({ error: 'An invitation is already pending for this email' }, { status: 409 })
+    }
+
+    const invitation = await createInvitation(ctx.orgId, email, role, ctx.uid)
+
+    const acceptUrl = `${req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://publicdatamaps.com'}/org?invite=${invitation.token}`
+    const inviterProfile = await getAdminDb().collection('userProfiles').doc(ctx.uid).get()
+    const inviterName = inviterProfile.data()?.displayName ?? null
+    const emailSent = await sendInviteEmail(email, org.name, inviterName, role, acceptUrl)
+
+    return NextResponse.json({
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        token: invitation.token,
+        expiresAt: invitation.expiresAt,
+      },
+      emailSent,
+    })
+  } catch (err: any) {
+    console.error('[invite] POST error:', err)
+    return NextResponse.json({ error: err?.message ?? 'Failed to send invitation' }, { status: 500 })
   }
-
-  if (role === 'admin' && ctx.member.role !== 'owner') {
-    return NextResponse.json({ error: 'Only the owner can invite admins' }, { status: 403 })
-  }
-
-  const org = await getOrg(ctx.orgId)
-  if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
-
-  const [count, pending] = await Promise.all([
-    memberCount(ctx.orgId),
-    listInvitations(ctx.orgId, 'pending'),
-  ])
-  if (count + pending.length >= 1000) {
-    return NextResponse.json({ error: 'Organization has reached the maximum seat limit' }, { status: 409 })
-  }
-
-  const existingSnap = await getAdminDb()
-    .collection('organizations').doc(ctx.orgId)
-    .collection('invitations')
-    .where('email', '==', email)
-    .where('status', '==', 'pending')
-    .limit(1)
-    .get()
-
-  if (!existingSnap.empty) {
-    return NextResponse.json({ error: 'An invitation is already pending for this email' }, { status: 409 })
-  }
-
-  const invitation = await createInvitation(ctx.orgId, email, role, ctx.uid)
-
-  const acceptUrl = `${req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://publicdatamaps.com'}/org?invite=${invitation.token}`
-  const inviterProfile = await getAdminDb().collection('userProfiles').doc(ctx.uid).get()
-  const inviterName = inviterProfile.data()?.displayName ?? null
-  const emailSent = await sendInviteEmail(email, org.name, inviterName, role, acceptUrl)
-
-  return NextResponse.json({
-    invitation: {
-      id: invitation.id,
-      email: invitation.email,
-      role: invitation.role,
-      token: invitation.token,
-      expiresAt: invitation.expiresAt,
-    },
-    emailSent,
-  })
 }
 
 export async function DELETE(req: NextRequest) {
@@ -109,6 +129,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Invitation not found or not pending' }, { status: 404 })
   }
 
-  await ref.update({ status: 'revoked' })
+  const db = getAdminDb()
+  const batch = db.batch()
+  batch.update(ref, { status: 'revoked' })
+  const token = snap.data()?.token
+  if (token) batch.delete(db.collection('inviteTokens').doc(token))
+  await batch.commit()
   return NextResponse.json({ ok: true })
 }

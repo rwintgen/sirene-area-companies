@@ -26,7 +26,7 @@ export default function SavedSearches({
   isOpen: controlledOpen,
   onToggle,
 }: {
-  onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string, preQueryPresets?: string[], preQueryFilters?: Filter[], preQueryCustomIds?: string[]) => void
+  onRestoreSearch: (geometry: any, filters: Filter[], sortCriteria: { column: string; dir: 'asc' | 'desc' }[], activePresets: string[], id: string, preQueryPresets?: string[], preQueryFilters?: Filter[], preQueryCustomIds?: string[], preQueryOrgIds?: string[]) => void
   onDeleteCurrentSearch: () => void
   onCountChange?: (count: number) => void
   activeSearchId: string | null
@@ -187,7 +187,8 @@ export default function SavedSearches({
                       const pqPresets: string[] = area.preQueryPresetsJson ? JSON.parse(area.preQueryPresetsJson) : []
                       const pqFilters: Filter[] = area.preQueryFiltersJson ? JSON.parse(area.preQueryFiltersJson) : []
                       const pqCustomIds: string[] = area.preQueryCustomIdsJson ? JSON.parse(area.preQueryCustomIdsJson) : []
-                      onRestoreSearch(geo, filters, sortCriteria, activePresets, area.id, pqPresets, pqFilters, pqCustomIds)
+                      const pqOrgIds: string[] = area.preQueryOrgIdsJson ? JSON.parse(area.preQueryOrgIdsJson) : []
+                      onRestoreSearch(geo, filters, sortCriteria, activePresets, area.id, pqPresets, pqFilters, pqCustomIds, pqOrgIds)
                     }}
                     className="flex-1 text-left text-sm px-2.5 py-1.5 min-w-0 truncate"
                   >

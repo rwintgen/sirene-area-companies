@@ -25,6 +25,7 @@ export interface Organization {
   settings: {
     defaultPresets: string[]
     defaultResultLimit: number | null
+    customQuickFilters?: { id: string; label: string; column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string }[]
   }
 }
 
@@ -93,10 +94,14 @@ export async function listInvitations(orgId: string, status?: OrgInvitation['sta
   let q: FirebaseFirestore.Query = getAdminDb()
     .collection('organizations').doc(orgId)
     .collection('invitations')
-    .orderBy('createdAt', 'desc')
   if (status) q = q.where('status', '==', status)
   const snap = await q.get()
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as OrgInvitation)
+  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as OrgInvitation)
+  return docs.sort((a, b) => {
+    const ta = a.createdAt?.toDate?.()?.getTime?.() ?? 0
+    const tb = b.createdAt?.toDate?.()?.getTime?.() ?? 0
+    return tb - ta
+  })
 }
 
 /** Creates a new organization and adds the owner as the first member. */
@@ -167,7 +172,10 @@ export async function createInvitation(
     status: 'pending' as const,
     token,
   }
-  await ref.set(invitation)
+  const batch = db.batch()
+  batch.set(ref, invitation)
+  batch.set(db.collection('inviteTokens').doc(token), { orgId, invitationId: ref.id })
+  await batch.commit()
   return { id: ref.id, ...invitation } as unknown as OrgInvitation
 }
 
@@ -181,17 +189,20 @@ export async function acceptInvitation(
 ): Promise<{ orgId: string; orgName: string; role: OrgRole }> {
   const db = getAdminDb()
 
-  const snap = await db.collectionGroup('invitations')
-    .where('token', '==', token)
-    .where('status', '==', 'pending')
-    .limit(1)
+  const tokenDoc = await db.collection('inviteTokens').doc(token).get()
+  if (!tokenDoc.exists) throw new Error('Invalid or expired invitation')
+  const { orgId, invitationId } = tokenDoc.data()!
+
+  const inviteDoc = await db
+    .collection('organizations').doc(orgId)
+    .collection('invitations').doc(invitationId)
     .get()
 
-  if (snap.empty) throw new Error('Invalid or expired invitation')
+  if (!inviteDoc.exists || inviteDoc.data()?.status !== 'pending') {
+    throw new Error('Invalid or expired invitation')
+  }
 
-  const inviteDoc = snap.docs[0]
-  const invite = inviteDoc.data()
-  const orgId = inviteDoc.ref.parent.parent!.id
+  const invite = inviteDoc.data()!
 
   if (new Date(invite.expiresAt.toDate ? invite.expiresAt.toDate() : invite.expiresAt) < new Date()) {
     await inviteDoc.ref.update({ status: 'expired' })
@@ -208,6 +219,7 @@ export async function acceptInvitation(
   const batch = db.batch()
 
   batch.update(inviteDoc.ref, { status: 'accepted' })
+  batch.delete(db.collection('inviteTokens').doc(token))
 
   batch.set(
     db.collection('organizations').doc(orgId).collection('members').doc(uid),
@@ -221,11 +233,11 @@ export async function acceptInvitation(
     },
   )
 
-  batch.update(db.collection('userProfiles').doc(uid), {
+  batch.set(db.collection('userProfiles').doc(uid), {
     orgId,
     orgRole: invite.role,
     orgName: org.name,
-  })
+  }, { merge: true })
 
   await batch.commit()
 

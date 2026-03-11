@@ -178,18 +178,22 @@ export function InfoTooltip({ text, children, isDark, position = 'top', width = 
   )
 }
 
-const PRESET_PILL_STYLES = {
+const QUICK_FILTER_PILL_STYLES = {
   dark: {
     base: 'bg-white/5 text-gray-500 border-white/8 hover:bg-white/10 hover:text-gray-300',
     active: 'bg-white/15 text-white border-white/25',
     customBase: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:text-emerald-300',
     customActive: 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50',
+    orgBase: 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20 hover:text-amber-300',
+    orgActive: 'bg-amber-500/25 text-amber-300 border-amber-400/50',
   },
   light: {
     base: 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700',
     active: 'bg-violet-50 text-violet-700 border-violet-300',
     customBase: 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800',
     customActive: 'bg-emerald-100 text-emerald-800 border-emerald-400',
+    orgBase: 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 hover:text-amber-800',
+    orgActive: 'bg-amber-100 text-amber-800 border-amber-400',
   },
 } as const
 
@@ -198,6 +202,7 @@ interface PresetPillProps {
   active: boolean
   isDark: boolean
   custom?: boolean
+  org?: boolean
   disabled?: boolean
   onClick?: () => void
   onMouseEnter?: () => void
@@ -206,11 +211,11 @@ interface PresetPillProps {
   tooltipPos?: string
 }
 
-export function PresetPill({ label, active, isDark, custom, disabled, onClick, onMouseEnter, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
-  const s = PRESET_PILL_STYLES[isDark ? 'dark' : 'light']
+export function PresetPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
+  const s = QUICK_FILTER_PILL_STYLES[isDark ? 'dark' : 'light']
   const cls = active
-    ? custom ? s.customActive : s.active
-    : custom ? s.customBase : s.base
+    ? org ? s.orgActive : custom ? s.customActive : s.active
+    : org ? s.orgBase : custom ? s.customBase : s.base
   return (
     <button
       disabled={disabled}
@@ -223,6 +228,51 @@ export function PresetPill({ label, active, isDark, custom, disabled, onClick, o
     >
       {label}
     </button>
+  )
+}
+
+export function ConfirmModal({ isDark, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, onConfirm, onCancel }: {
+  isDark: boolean
+  title: string
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+  danger?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <Modal isDark={isDark} onClose={onCancel} zIndex="z-[9999]" className={isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'}>
+      {(handleClose) => (
+        <div className="w-[360px] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+            <CloseButton onClick={handleClose} isDark={isDark} />
+          </div>
+          <p className={`text-[12px] leading-relaxed mb-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{message}</p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={handleClose}
+              className={`text-[11px] font-medium px-4 py-1.5 rounded-lg border transition-colors ${
+                isDark ? 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5' : 'border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {cancelLabel}
+            </button>
+            <button
+              onClick={() => { handleClose(); setTimeout(onConfirm, 200) }}
+              className={`text-[11px] font-medium px-4 py-1.5 rounded-lg transition-colors ${
+                danger
+                  ? isDark ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  : isDark ? 'bg-white text-gray-900 hover:bg-gray-200' : 'bg-violet-600 text-white hover:bg-violet-700'
+              }`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 

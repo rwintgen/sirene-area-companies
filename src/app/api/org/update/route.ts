@@ -57,6 +57,17 @@ export async function PATCH(req: NextRequest) {
     if (Array.isArray(body.settings.defaultPresets)) {
       updates['settings.defaultPresets'] = body.settings.defaultPresets
     }
+    if (Array.isArray(body.settings.customQuickFilters)) {
+      const filters = body.settings.customQuickFilters.slice(0, 50).map((f: any) => ({
+        id: typeof f.id === 'string' ? f.id : '',
+        label: typeof f.label === 'string' ? f.label.slice(0, 100) : '',
+        column: typeof f.column === 'string' ? f.column.slice(0, 200) : '',
+        operator: ['contains', 'equals', 'empty'].includes(f.operator) ? f.operator : 'contains',
+        negate: !!f.negate,
+        value: typeof f.value === 'string' ? f.value.slice(0, 500) : '',
+      }))
+      updates['settings.customQuickFilters'] = filters
+    }
     if (body.settings.defaultResultLimit !== undefined) {
       updates['settings.defaultResultLimit'] = body.settings.defaultResultLimit
     }

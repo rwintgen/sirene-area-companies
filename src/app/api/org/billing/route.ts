@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only the owner can manage billing' }, { status: 403 })
   }
 
-  const customerId = profile.data()?.stripeCustomerId
+  const org = await getOrg(orgId)
+  const customerId = org?.stripeCustomerId
   if (!customerId) {
     return NextResponse.json({ error: 'No billing account found' }, { status: 404 })
   }

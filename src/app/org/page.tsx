@@ -1403,16 +1403,18 @@ export default function OrgDashboard() {
               )}
 
               {isOwner && (
-                <>
-                  <div className={`rounded-xl border p-4 space-y-3 ${t.card}`}>
-                    <p className={`text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Transfer ownership</p>
+                <div className={`rounded-xl border p-4 space-y-5 ${isDark ? 'border-red-500/20 bg-red-500/5' : 'border-red-200 bg-red-50'}`}>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold ${isDark ? 'text-red-400' : 'text-red-600'}`}>Danger zone</p>
+
+                  <div className="space-y-2">
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Transfer ownership</p>
                     <p className={`text-[11px] ${t.muted}`}>Transfer ownership to another member. You will become an admin.</p>
                     <div className="flex flex-wrap gap-2">
                       {members.filter((m) => m.role !== 'owner').map((m) => (
                         <button
                           key={m.uid}
                           onClick={() => setTransferTarget({ uid: m.uid, name: m.displayName ?? m.email })}
-                          className={`text-[11px] font-medium px-3 py-1 rounded-lg border transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                          className={`text-[11px] font-medium px-3 py-1 rounded-lg border transition-colors ${isDark ? 'border-red-500/30 text-gray-300 hover:bg-red-500/10' : 'border-red-200 text-gray-600 hover:bg-red-100'}`}
                         >
                           {m.displayName ?? m.email}
                         </button>
@@ -1423,8 +1425,8 @@ export default function OrgDashboard() {
                     </div>
                   </div>
 
-                  <div className={`rounded-xl border p-4 space-y-3 ${isDark ? 'border-red-500/20 bg-red-500/5' : 'border-red-200 bg-red-50'}`}>
-                    <p className={`text-[10px] uppercase tracking-widest font-semibold ${isDark ? 'text-red-400' : 'text-red-600'}`}>Danger zone</p>
+                  <div className={`border-t pt-4 space-y-2 ${isDark ? 'border-red-500/20' : 'border-red-200'}`}>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Delete organization</p>
                     <p className={`text-[11px] ${t.muted}`}>
                       Deleting an organization is permanent and cannot be undone. All members, connectors, saved searches, and billing data will be removed.
                     </p>
@@ -1435,7 +1437,7 @@ export default function OrgDashboard() {
                       Contact support to delete organization
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

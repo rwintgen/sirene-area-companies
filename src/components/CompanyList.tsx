@@ -106,6 +106,7 @@ function CompanyList({
   const [showPresets, setShowPresets] = useState(false)
   const [showSort, setShowSort] = useState(false)
   const [hoveredPreset, setHoveredPreset] = useState<string | null>(null)
+  const [presetTooltipPos, setPresetTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -537,7 +538,8 @@ function CompanyList({
                           }
                         }}
                         onMouseEnter={() => setHoveredPreset(preset.id)}
-                        onMouseLeave={() => setHoveredPreset(null)}
+                        onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                        onMouseLeave={() => { setHoveredPreset(null); setPresetTooltipPos(null) }}
                         tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
                         tooltipPos={isPreQuery ? 'bottom-left' : undefined}
                       />
@@ -586,7 +588,8 @@ function CompanyList({
                         else onPresetsChange([...activePresets, oq.id])
                       }}
                       onMouseEnter={() => setHoveredPreset(oq.id)}
-                      onMouseLeave={() => setHoveredPreset(null)}
+                      onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => { setHoveredPreset(null); setPresetTooltipPos(null) }}
                       tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
                       tooltipPos={isPreQuery ? 'bottom-left' : undefined}
                     />
@@ -632,7 +635,8 @@ function CompanyList({
                             }
                           }}
                           onMouseEnter={() => setHoveredPreset(cp.id)}
-                          onMouseLeave={() => setHoveredPreset(null)}
+                          onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                          onMouseLeave={() => { setHoveredPreset(null); setPresetTooltipPos(null) }}
                           tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
                           tooltipPos={isPreQuery ? 'bottom-left' : undefined}
                         />
@@ -735,14 +739,19 @@ function CompanyList({
               Custom labels — upgrade to unlock
             </button>
           )}
-          {hoveredPreset && (() => {
+          {hoveredPreset && presetTooltipPos && (() => {
             const builtIn = PRESET_FILTERS.find((p) => p.id === hoveredPreset)
-            if (builtIn) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{builtIn.description}</p>
-            const orgFilter = orgQuickFilters.find((p) => p.id === hoveredPreset)
-            if (orgFilter) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{`${orgFilter.negate ? 'NOT ' : ''}${orgFilter.column} ${orgFilter.operator} ${orgFilter.value}`}</p>
-            const custom = customPresets.find((p) => p.id === hoveredPreset)
-            if (custom) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{`${custom.negate ? 'NOT ' : ''}${custom.column} ${custom.operator} ${custom.value}`}</p>
-            return null
+            const text = builtIn ? builtIn.description
+              : (() => { const f = orgQuickFilters.find((p) => p.id === hoveredPreset) ?? customPresets.find((p) => p.id === hoveredPreset); return f ? `${f.negate ? 'NOT ' : ''}${f.column} ${f.operator} ${f.value}` : null })()
+            if (!text) return null
+            return (
+              <div
+                className={`fixed z-[9999] pointer-events-none px-2 py-1 rounded text-[10px] shadow-lg max-w-[240px] ${isDark ? 'bg-gray-800 text-gray-300 border border-white/10' : 'bg-white text-gray-500 border border-gray-200'}`}
+                style={{ left: presetTooltipPos.x, top: presetTooltipPos.y + 16 }}
+              >
+                {text}
+              </div>
+            )
           })()}
         </CardSection>
       )}

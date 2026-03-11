@@ -114,6 +114,7 @@ export default function Home() {
   const batchTimestamps = useRef<{ loaded: number; time: number }[]>([])
   const searchTotal = useRef<number>(0)
   const [hoveredPQPreset, setHoveredPQPreset] = useState<string | null>(null)
+  const [presetTooltipPos, setPresetTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [connectorSource, setConnectorSource] = useState<string | null>(null)
   const [orgConnectors, setOrgConnectors] = useState<{ id: string; name: string; columns: string[]; rowCount: number }[]>([])
   const [orgConnectorsLoaded, setOrgConnectorsLoaded] = useState(false)
@@ -882,6 +883,14 @@ export default function Home() {
             </span>
           </div>
         )}
+        {user && user.providerData[0]?.providerId === 'password' && !user.emailVerified && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span className="text-[11px] font-medium">Email not verified — <button onClick={() => setEmailVerifyPrompt(true)} className="underline hover:no-underline">resend verification</button></span>
+          </div>
+        )}
         {usageWarnings.map((msg) => (
           <div key={msg} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400">
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1133,7 +1142,8 @@ export default function Home() {
                                 disabled={locked}
                                 onClick={() => setPreQueryPresets((prev) => active ? prev.filter((id) => id !== preset.id) : [...prev, preset.id])}
                                 onMouseEnter={() => setHoveredPQPreset(preset.id)}
-                                onMouseLeave={() => setHoveredPQPreset(null)}
+                                onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                                onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                               />
                             )
                           })}
@@ -1167,7 +1177,8 @@ export default function Home() {
                               disabled={locked}
                               onClick={() => setPreQueryOrgIds((prev) => active ? prev.filter((id) => id !== oq.id) : [...prev, oq.id])}
                               onMouseEnter={() => setHoveredPQPreset(oq.id)}
-                              onMouseLeave={() => setHoveredPQPreset(null)}
+                              onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                              onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                             />
                           )
                         })}
@@ -1203,7 +1214,8 @@ export default function Home() {
                                 disabled={locked}
                                 onClick={() => setPreQueryCustomIds((prev) => active ? prev.filter((id) => id !== cp.id) : [...prev, cp.id])}
                                 onMouseEnter={() => setHoveredPQPreset(cp.id)}
-                                onMouseLeave={() => setHoveredPQPreset(null)}
+                                onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
+                                onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                               />
                               {!locked && (
                                 <button
@@ -1293,10 +1305,13 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  {hoveredDef && (
-                    <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                  {hoveredDef && presetTooltipPos && (
+                    <div
+                      className={`fixed z-[9999] pointer-events-none px-2 py-1 rounded text-[10px] shadow-lg max-w-[240px] ${isDark ? 'bg-gray-800 text-gray-300 border border-white/10' : 'bg-white text-gray-500 border border-gray-200'}`}
+                      style={{ left: presetTooltipPos.x, top: presetTooltipPos.y + 16 }}
+                    >
                       {'description' in hoveredDef ? (hoveredDef as any).description : `${(hoveredDef as CustomPreset).negate ? 'NOT ' : ''}${(hoveredDef as CustomPreset).column} ${(hoveredDef as CustomPreset).operator} ${(hoveredDef as CustomPreset).value}`}
-                    </p>
+                    </div>
                   )}
                 </CardSection>
 

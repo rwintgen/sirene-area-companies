@@ -206,12 +206,13 @@ interface PresetPillProps {
   disabled?: boolean
   onClick?: () => void
   onMouseEnter?: () => void
+  onMouseMove?: (e: React.MouseEvent) => void
   onMouseLeave?: () => void
   tooltip?: string
   tooltipPos?: string
 }
 
-export function PresetPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
+export function PresetPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseMove, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
   const s = QUICK_FILTER_PILL_STYLES[isDark ? 'dark' : 'light']
   const cls = active
     ? org ? s.orgActive : custom ? s.customActive : s.active
@@ -221,6 +222,7 @@ export function PresetPill({ label, active, isDark, custom, org, disabled, onCli
       disabled={disabled}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
+      onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
       data-tooltip={tooltip}
       data-tooltip-pos={tooltipPos}

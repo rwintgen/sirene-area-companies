@@ -39,6 +39,13 @@ export async function GET(req: NextRequest) {
     members.map((m) => adminDb.collection('userProfiles').doc(m.uid).get()),
   )
 
+  const savedSearchCounts = await Promise.all(
+    members.map((m) => adminDb.collection('userProfiles').doc(m.uid).collection('savedSearches').count().get()),
+  )
+
+  const orgDoc = await adminDb.collection('organizations').doc(orgId).get()
+  const orgQuickFiltersCount = (orgDoc.data()?.settings?.customQuickFilters ?? []).length
+
   const memberUsage = members.map((m, i) => {
     const data = profileDocs[i].exists ? profileDocs[i].data()! : {}
     const isCurrent = data.monthKey === month
@@ -50,16 +57,23 @@ export async function GET(req: NextRequest) {
       searchCount: isCurrent ? (data.searchCount ?? 0) : 0,
       aiOverviewCount: isCurrent ? (data.aiOverviewCount ?? 0) : 0,
       lastActiveAt: data.lastActiveAt ?? null,
+      savedSearches: savedSearchCounts[i].data().count,
+      customQuickFilters: Array.isArray(data.customPresets) ? data.customPresets.length : 0,
     }
   })
 
   const totalSearches = memberUsage.reduce((sum, m) => sum + m.searchCount, 0)
   const totalAiOverviews = memberUsage.reduce((sum, m) => sum + m.aiOverviewCount, 0)
+  const totalSavedSearches = memberUsage.reduce((sum, m) => sum + m.savedSearches, 0)
+  const totalCustomQuickFilters = memberUsage.reduce((sum, m) => sum + m.customQuickFilters, 0)
 
   return NextResponse.json({
     month,
     totalSearches,
     totalAiOverviews,
+    totalSavedSearches,
+    totalCustomQuickFilters,
+    orgQuickFiltersCount,
     members: memberUsage,
   })
 }

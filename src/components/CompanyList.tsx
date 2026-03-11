@@ -69,6 +69,7 @@ function CompanyList({
   disabledPresetIds = [],
   userTier,
   orgQuickFilters = [],
+  orgRole,
   canSave,
   hasSearchArea,
   onSaveSearch,
@@ -93,6 +94,7 @@ function CompanyList({
   disabledPresetIds?: string[]
   userTier: UserTier
   orgQuickFilters?: CustomPreset[]
+  orgRole?: 'owner' | 'admin' | 'member' | null
   canSave: boolean
   hasSearchArea: boolean
   onSaveSearch: (name: string) => Promise<void>
@@ -545,11 +547,6 @@ function CompanyList({
               </div>
             )
           })}
-          {hoveredPreset && (() => {
-            const builtIn = PRESET_FILTERS.find((p) => p.id === hoveredPreset)
-            if (builtIn) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{builtIn.description}</p>
-            return null
-          })()}
           {activePresets.length > 0 && (
             <button
               onClick={() => onPresetsChange([])}
@@ -561,7 +558,17 @@ function CompanyList({
 
           {orgQuickFilters.length > 0 && (
             <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
-              <div className={`text-[9px] uppercase tracking-widest font-semibold mb-0.5 ${isDark ? 'text-amber-500/70' : 'text-amber-600/70'}`}>Organization</div>
+              <div className="flex items-center justify-between mb-0.5">
+                <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-amber-500/70' : 'text-amber-600/70'}`}>Organization</div>
+                {(orgRole === 'owner' || orgRole === 'admin') && (
+                  <a
+                    href="/org#settings"
+                    className={`text-[10px] font-medium ${isDark ? 'text-amber-400/60 hover:text-amber-400' : 'text-amber-600/60 hover:text-amber-600'}`}
+                  >
+                    Manage
+                  </a>
+                )}
+              </div>
               <div className="flex flex-wrap gap-1">
                 {orgQuickFilters.map((oq) => {
                   const isActive = activePresets.includes(oq.id)
@@ -578,6 +585,8 @@ function CompanyList({
                         if (isActive) onPresetsChange(activePresets.filter((id) => id !== oq.id))
                         else onPresetsChange([...activePresets, oq.id])
                       }}
+                      onMouseEnter={() => setHoveredPreset(oq.id)}
+                      onMouseLeave={() => setHoveredPreset(null)}
                       tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
                       tooltipPos={isPreQuery ? 'bottom-left' : undefined}
                     />
@@ -622,6 +631,8 @@ function CompanyList({
                               onPresetsChange([...activePresets, cp.id])
                             }
                           }}
+                          onMouseEnter={() => setHoveredPreset(cp.id)}
+                          onMouseLeave={() => setHoveredPreset(null)}
                           tooltip={isPreQuery ? 'Pre-search filter applied' : undefined}
                           tooltipPos={isPreQuery ? 'bottom-left' : undefined}
                         />
@@ -724,6 +735,15 @@ function CompanyList({
               Custom labels — upgrade to unlock
             </button>
           )}
+          {hoveredPreset && (() => {
+            const builtIn = PRESET_FILTERS.find((p) => p.id === hoveredPreset)
+            if (builtIn) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{builtIn.description}</p>
+            const orgFilter = orgQuickFilters.find((p) => p.id === hoveredPreset)
+            if (orgFilter) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{`${orgFilter.negate ? 'NOT ' : ''}${orgFilter.column} ${orgFilter.operator} ${orgFilter.value}`}</p>
+            const custom = customPresets.find((p) => p.id === hoveredPreset)
+            if (custom) return <p className={`text-[10px] mt-1.5 ${t.presetGroup}`}>{`${custom.negate ? 'NOT ' : ''}${custom.column} ${custom.operator} ${custom.value}`}</p>
+            return null
+          })()}
         </CardSection>
       )}
 

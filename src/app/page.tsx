@@ -984,7 +984,7 @@ export default function Home() {
           const totalActive = preQueryPresets.length + preQueryFilters.length + preQueryCustomIds.length + preQueryOrgIds.length
           const locked = isLoading || !!searchArea
           const hasResults = companies.length > 0
-          const hoveredDef = hoveredPQPreset ? PRESET_FILTERS.find((p) => p.id === hoveredPQPreset) ?? customPresets.find((p) => p.id === hoveredPQPreset) : null
+          const hoveredDef = hoveredPQPreset ? PRESET_FILTERS.find((p) => p.id === hoveredPQPreset) ?? customPresets.find((p) => p.id === hoveredPQPreset) ?? orgQuickFilters.find((p) => p.id === hoveredPQPreset) : null
           const effectiveLimit = (userTier === 'individual' || userTier === 'enterprise')
             ? (customResultLimit ?? getResultLimit(userTier))
             : getResultLimit(userTier)
@@ -1143,7 +1143,17 @@ export default function Home() {
                   })}
                   {orgQuickFilters.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
-                      <SectionTitle isDark={isDark} className={isDark ? '!text-amber-500/70' : '!text-amber-600/70'}>Organization</SectionTitle>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <SectionTitle isDark={isDark} className={isDark ? '!text-amber-500/70' : '!text-amber-600/70'}>Organization</SectionTitle>
+                        {(orgRole === 'owner' || orgRole === 'admin') && (
+                          <a
+                            href="/org#settings"
+                            className={`text-[10px] font-medium ${isDark ? 'text-amber-400/60 hover:text-amber-400' : 'text-amber-600/60 hover:text-amber-600'}`}
+                          >
+                            Manage
+                          </a>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {orgQuickFilters.map((oq) => {
                           const active = preQueryOrgIds.includes(oq.id)
@@ -1156,6 +1166,8 @@ export default function Home() {
                               org
                               disabled={locked}
                               onClick={() => setPreQueryOrgIds((prev) => active ? prev.filter((id) => id !== oq.id) : [...prev, oq.id])}
+                              onMouseEnter={() => setHoveredPQPreset(oq.id)}
+                              onMouseLeave={() => setHoveredPQPreset(null)}
                             />
                           )
                         })}
@@ -1451,6 +1463,7 @@ export default function Home() {
             disabledPresetIds={[...preQueryPresets, ...preQueryCustomIds, ...preQueryOrgIds]}
             userTier={userTier}
             orgQuickFilters={orgQuickFilters}
+            orgRole={orgRole}
             canSave={!!user && !!searchArea}
             hasSearchArea={!!searchArea}
             onSaveSearch={handleSaveSearch}

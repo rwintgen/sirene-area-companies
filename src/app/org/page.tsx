@@ -96,7 +96,7 @@ export default function OrgDashboard() {
   const [logoError, setLogoError] = useState<string | null>(null)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
-  const [usageData, setUsageData] = useState<{ month: string; totalSearches: number; totalAiOverviews: number; members: { uid: string; displayName: string | null; email: string; role: OrgRole; searchCount: number; aiOverviewCount: number; lastActiveAt: string | null }[] } | null>(null)
+  const [usageData, setUsageData] = useState<{ month: string; totalSearches: number; totalAiOverviews: number; totalSavedSearches: number; totalCustomQuickFilters: number; orgQuickFiltersCount: number; members: { uid: string; displayName: string | null; email: string; role: OrgRole; searchCount: number; aiOverviewCount: number; lastActiveAt: string | null; savedSearches: number; customQuickFilters: number }[] } | null>(null)
   const [usageLoading, setUsageLoading] = useState(false)
   const [usageLoaded, setUsageLoaded] = useState(false)
 
@@ -1160,6 +1160,9 @@ export default function OrgDashboard() {
                         {[
                           { label: 'Total searches', value: usageData.totalSearches.toLocaleString() },
                           { label: 'AI overviews', value: usageData.totalAiOverviews.toLocaleString() },
+                          { label: 'Saved searches', value: usageData.totalSavedSearches.toLocaleString() },
+                          { label: 'Custom quick filters', value: usageData.totalCustomQuickFilters.toLocaleString() },
+                          { label: 'Org quick filters', value: `${usageData.orgQuickFiltersCount}` },
                           { label: 'Active members', value: `${members.length}` },
                         ].map((row, i) => (
                           <tr key={row.label} className={i > 0 ? `border-t ${t.border}` : ''}>
@@ -1178,6 +1181,8 @@ export default function OrgDashboard() {
                           <th className={`text-left px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Member</th>
                           <th className={`text-right px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Searches</th>
                           <th className={`text-right px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>AI</th>
+                          <th className={`text-right px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Saved</th>
+                          <th className={`text-right px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Filters</th>
                           <th className={`text-right px-4 py-2 text-[10px] uppercase tracking-widest font-semibold ${t.label}`}>Last active</th>
                         </tr>
                       </thead>
@@ -1194,6 +1199,8 @@ export default function OrgDashboard() {
                               </td>
                               <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.title}`}>{m.searchCount.toLocaleString()}</td>
                               <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.title}`}>{m.aiOverviewCount.toLocaleString()}</td>
+                              <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.title}`}>{m.savedSearches}</td>
+                              <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.title}`}>{m.customQuickFilters}</td>
                               <td className={`px-4 py-2.5 text-right ${t.muted}`}>
                                 {m.lastActiveAt ? new Date(m.lastActiveAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
                               </td>
@@ -1421,12 +1428,12 @@ export default function OrgDashboard() {
                     <p className={`text-[11px] ${t.muted}`}>
                       Deleting an organization is permanent and cannot be undone. All members, connectors, saved searches, and billing data will be removed.
                     </p>
-                    <a
-                      href="mailto:support@publicdatamaps.com?subject=Delete%20organization&body=Please%20delete%20my%20organization.%20Organization%20name%3A%20"
-                      className={`inline-block text-[11px] font-medium px-4 py-1.5 rounded-lg border transition-colors ${isDark ? 'border-red-500/30 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-100'}`}
+                    <button
+                      onClick={() => navigateToSection('support')}
+                      className={`text-[11px] font-medium px-4 py-1.5 rounded-lg border transition-colors ${isDark ? 'border-red-500/30 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-100'}`}
                     >
                       Contact support to delete organization
-                    </a>
+                    </button>
                   </div>
                 </>
               )}

@@ -178,10 +178,10 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       priceLine: null,
       priceUnit: '/seat/mo',
       priceNote: null,
-      cta: 'Contact us',
+      cta: 'Subscribe',
       popular: false,
       isFree: false,
-      isEnterprise: true,
+      isEnterprise: false,
       features: [
         { text: 'Everything in Individual plan', included: true },
         { text: 'Unlimited searches', included: true },
@@ -345,49 +345,44 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
                 ))}
               </ul>
 
-              {plan.isEnterprise ? (
-                plan.id === currentTier ? (
-                  <button disabled className={`w-full rounded-lg py-2 text-xs font-semibold border cursor-default ${t.freeBtn}`}>
-                    Current plan
-                  </button>
-                ) : (
-                  <a
-                    href="mailto:romainwintgens@gmail.com?subject=Enterprise%20plan"
-                    className={`w-full rounded-lg py-2 text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 ${t.secondaryBtn}`}
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Contact us
-                  </a>
-                )
-              ) : (
-                <button
-                  disabled={(plan.isFree && !discountInfo) || plan.disabled || plan.id === currentTier}
-                  onClick={() => {
-                    if (plan.isFree && discountInfo && onRevertDiscount) {
-                      onRevertDiscount().then(() => handleClose())
-                      return
-                    }
-                    if (onCheckout && !plan.isFree && !plan.disabled && plan.id !== currentTier) {
-                      onCheckout(plan.id, billing)
-                    }
-                  }}
-                  className={`w-full rounded-lg py-2 text-xs font-semibold transition-all border ${
-                    plan.id === currentTier || (plan.isFree && !discountInfo) || plan.disabled
-                      ? t.freeBtn + ' cursor-default'
-                      : plan.popular ? t.primaryBtn : t.secondaryBtn
-                  }`}
-                >
-                  {plan.id === currentTier
-                    ? 'Current plan'
-                    : plan.isFree && discountInfo
-                      ? 'Revert to free plan'
-                      : plan.cta}
-                </button>
-              )}
+              <button
+                disabled={(plan.isFree && !discountInfo) || plan.disabled || plan.id === currentTier}
+                onClick={() => {
+                  if (plan.isFree && discountInfo && onRevertDiscount) {
+                    onRevertDiscount().then(() => handleClose())
+                    return
+                  }
+                  if (onCheckout && !plan.isFree && !plan.disabled && plan.id !== currentTier) {
+                    onCheckout(plan.id, billing)
+                  }
+                }}
+                className={`w-full rounded-lg py-2 text-xs font-semibold transition-all border ${
+                  plan.id === currentTier || (plan.isFree && !discountInfo) || plan.disabled
+                    ? t.freeBtn + ' cursor-default'
+                    : plan.popular ? t.primaryBtn : t.secondaryBtn
+                }`}
+              >
+                {plan.id === currentTier
+                  ? 'Current plan'
+                  : plan.isFree && discountInfo
+                    ? 'Revert to free plan'
+                    : plan.cta}
+              </button>
             </div>
           ))}
+        </div>
+
+        {/* Special services message */}
+        <div className={`mx-6 mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl ${isDark ? 'bg-white/[0.03] border border-white/5' : 'bg-gray-50 border border-gray-200'}`}>
+          <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            Do you need special services or a large number of seats?{' '}
+            <a href="mailto:romainwintgens@gmail.com?subject=Custom%20Enterprise%20Plan" className={`font-semibold underline ${isDark ? 'text-white hover:text-gray-200' : 'text-gray-900 hover:text-gray-700'}`}>
+              Contact Sales
+            </a>
+          </p>
         </div>
 
         {/* Discount code */}

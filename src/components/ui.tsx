@@ -182,18 +182,10 @@ const QUICK_FILTER_PILL_STYLES = {
   dark: {
     base: 'bg-white/5 text-gray-500 border-white/8 hover:bg-white/10 hover:text-gray-300',
     active: 'bg-white/15 text-white border-white/25',
-    customBase: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:text-emerald-300',
-    customActive: 'bg-emerald-500/25 text-emerald-300 border-emerald-400/50',
-    orgBase: 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20 hover:text-amber-300',
-    orgActive: 'bg-amber-500/25 text-amber-300 border-amber-400/50',
   },
   light: {
     base: 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700',
     active: 'bg-violet-50 text-violet-700 border-violet-300',
-    customBase: 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800',
-    customActive: 'bg-emerald-100 text-emerald-800 border-emerald-400',
-    orgBase: 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 hover:text-amber-800',
-    orgActive: 'bg-amber-100 text-amber-800 border-amber-400',
   },
 } as const
 
@@ -214,9 +206,7 @@ interface PresetPillProps {
 
 export function PresetPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseMove, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
   const s = QUICK_FILTER_PILL_STYLES[isDark ? 'dark' : 'light']
-  const cls = active
-    ? org ? s.orgActive : custom ? s.customActive : s.active
-    : org ? s.orgBase : custom ? s.customBase : s.base
+  const cls = active ? s.active : s.base
   return (
     <button
       disabled={disabled}

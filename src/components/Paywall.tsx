@@ -157,7 +157,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       priceLine: null,
       priceUnit: '/mo',
       priceNote: null,
-      cta: 'Start free trial',
+      cta: 'Subscribe',
       popular: true,
       isFree: false,
       features: [
@@ -178,7 +178,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
       priceLine: null,
       priceUnit: '/seat/mo',
       priceNote: null,
-      cta: 'Subscribe',
+      cta: 'Start free trial',
       popular: false,
       isFree: false,
       isEnterprise: false,
@@ -304,7 +304,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
                     )}
                     {plan.priceUnit?.includes('seat') && (
                       <p className={`text-[10px] mt-0.5 ${t.seatNote}`}>
-                        Starting price — contact us for a quote
+                        Starting price — contact sales for a quote
                       </p>
                     )}
                   </>
@@ -373,16 +373,21 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
         </div>
 
         {/* Special services message */}
-        <div className={`mx-6 mb-4 flex items-start gap-2.5 px-4 py-3 rounded-xl ${isDark ? 'bg-white/[0.03] border border-white/5' : 'bg-gray-50 border border-gray-200'}`}>
-          <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            Do you need special services or a large number of seats?{' '}
-            <a href="mailto:romainwintgens@gmail.com?subject=Custom%20Enterprise%20Plan" className={`font-semibold underline ${isDark ? 'text-white hover:text-gray-200' : 'text-gray-900 hover:text-gray-700'}`}>
-              Contact Sales
-            </a>
-          </p>
+        <div className={`mx-6 mb-4 flex items-center justify-between px-4 py-3 rounded-xl ${isDark ? 'bg-white/[0.03] border border-white/5' : 'bg-gray-50 border border-gray-200'}`}>
+          <div className="flex items-center gap-2.5">
+            <svg className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <p className={`text-[11px] leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Need special services or a large number of seats?
+            </p>
+          </div>
+          <a
+            href="mailto:romainwintgens@gmail.com?subject=Custom%20Enterprise%20Plan"
+            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all border ${isDark ? 'border-white/15 text-gray-300 hover:border-white/30 hover:bg-white/5' : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}
+          >
+            Contact Sales
+          </a>
         </div>
 
         {/* Discount code */}

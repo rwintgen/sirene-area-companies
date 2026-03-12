@@ -143,6 +143,16 @@ export default function Home() {
     if (!authLoading) setBootSteps((s) => ({ ...s, auth: true }))
   }, [authLoading])
 
+  const postCheckout = useRef(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('checkout')) {
+      postCheckout.current = params.get('checkout') === 'success'
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   /** Initialise search count from localStorage on mount, then sync from Firestore for logged-in users. */
   useEffect(() => {
     const uKey = getUserKey(user?.uid ?? null)
@@ -152,36 +162,61 @@ export default function Home() {
       setBootSteps((s) => ({ ...s, account: true }))
       return
     }
-    user.getIdToken().then((token) =>
-      fetch('/api/usage', { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((data) => {
-          if (data && typeof data.searchCount === 'number') {
-            setSearchCount(data.searchCount)
-            const uKey2 = getUserKey(user.uid)
-            try {
-              localStorage.setItem(`pdm_usage_${uKey2}`, JSON.stringify({ searchCount: data.searchCount, aiOverviewCount: data.aiOverviewCount ?? 0, monthKey: data.monthKey }))
-            } catch {}
-          }
-          if (data && typeof data.aiOverviewCount === 'number') {
-            setAIOverviewCount(data.aiOverviewCount)
-          }
-          if (data?.aiOverviews) setAIOverviewsList(data.aiOverviews)
-          if (data?.tier) setUserTier(data.tier as UserTier)
-          setDiscountInfo(data?.discount ?? null)
-          if (data?.org) {
-            setOrgId(data.org.orgId ?? null)
-            setOrgRole(data.org.orgRole ?? null)
-            setOrgName(data.org.orgName ?? null)
-            setOrgIconUrl(data.org.orgIconUrl ?? null)
-            if (Array.isArray(data.org.orgCustomQuickFilters)) {
-              setOrgQuickFilters(data.org.orgCustomQuickFilters)
-            }
-          }
-        })
-        .catch(() => {})
-        .finally(() => setBootSteps((s) => ({ ...s, account: true })))
-    ).catch(() => setBootSteps((s) => ({ ...s, account: true })))
+
+    const applyUsageData = (data: any) => {
+      if (data && typeof data.searchCount === 'number') {
+        setSearchCount(data.searchCount)
+        const uKey2 = getUserKey(user.uid)
+        try {
+          localStorage.setItem(`pdm_usage_${uKey2}`, JSON.stringify({ searchCount: data.searchCount, aiOverviewCount: data.aiOverviewCount ?? 0, monthKey: data.monthKey }))
+        } catch {}
+      }
+      if (data && typeof data.aiOverviewCount === 'number') {
+        setAIOverviewCount(data.aiOverviewCount)
+      }
+      if (data?.aiOverviews) setAIOverviewsList(data.aiOverviews)
+      if (data?.tier) setUserTier(data.tier as UserTier)
+      setDiscountInfo(data?.discount ?? null)
+      if (data?.org) {
+        setOrgId(data.org.orgId ?? null)
+        setOrgRole(data.org.orgRole ?? null)
+        setOrgName(data.org.orgName ?? null)
+        setOrgIconUrl(data.org.orgIconUrl ?? null)
+        if (Array.isArray(data.org.orgCustomQuickFilters)) {
+          setOrgQuickFilters(data.org.orgCustomQuickFilters)
+        }
+      }
+    }
+
+    const fetchUsage = () =>
+      user.getIdToken(true).then((token) =>
+        fetch('/api/usage', { headers: { Authorization: `Bearer ${token}` } })
+          .then((r) => r.ok ? r.json() : null)
+      )
+
+    fetchUsage()
+      .then((data) => {
+        applyUsageData(data)
+        if (postCheckout.current && (!data?.tier || data.tier === 'free')) {
+          postCheckout.current = false
+          let attempts = 0
+          const poll = setInterval(() => {
+            attempts++
+            fetchUsage().then((d) => {
+              if (d?.tier && d.tier !== 'free') {
+                applyUsageData(d)
+                clearInterval(poll)
+              } else if (attempts >= 10) {
+                clearInterval(poll)
+              }
+            }).catch(() => { if (attempts >= 10) clearInterval(poll) })
+          }, 2000)
+          return () => clearInterval(poll)
+        }
+        postCheckout.current = false
+      })
+      .catch(() => {})
+      .finally(() => setBootSteps((s) => ({ ...s, account: true })))
   }, [user])
 
   useEffect(() => {
@@ -659,7 +694,7 @@ export default function Home() {
       return
     }
     try {
-      const token = await user.getIdToken()
+      const token = await user.getIdToken(true)
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

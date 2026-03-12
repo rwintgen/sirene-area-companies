@@ -51,7 +51,27 @@ env:
     availability:
       - RUNTIME
 
+  - variable: STRIPE_PRICE_INDIVIDUAL_MONTHLY
+    value: price_1T7eKiLzMf4ig82JMT6imrd3
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_PRICE_INDIVIDUAL_YEARLY
+    value: price_1T7eLCLzMf4ig82JWft7QeTg
+    availability:
+      - RUNTIME
+
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability:
+      - RUNTIME
+
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
     availability:
       - RUNTIME

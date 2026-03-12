@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="h-full overflow-y-auto bg-white text-gray-900">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="text-3xl font-bold tracking-tight">Terms of Service</h1>
         <p className="mt-2 text-sm text-gray-500">Last updated: March 12, 2026</p>
@@ -178,8 +178,8 @@ export default function TermsOfService() {
             <h2 className="text-lg font-semibold text-gray-900">13. Contact</h2>
             <p className="mt-2">
               Questions about these terms? Contact us at{' '}
-              <a href="mailto:support@publicdatamaps.com" className="underline hover:text-gray-900">
-                support@publicdatamaps.com
+              <a href="mailto:wintgensromain@gmail.com" className="underline hover:text-gray-900">
+                wintgensromain@gmail.com
               </a>
               .
             </p>

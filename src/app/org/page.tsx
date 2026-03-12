@@ -1599,7 +1599,7 @@ export default function OrgDashboard() {
                   This section will display your support conversations with our team, each with a unique ticket ID and full message history.
                 </p>
                 <a
-                  href="mailto:support@publicdatamaps.com"
+                  href="mailto:wintgensromain@gmail.com"
                   className={`inline-block text-[11px] font-medium px-4 py-1.5 rounded-lg border transition-colors ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                   Contact support via email →

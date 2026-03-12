@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="h-full overflow-y-auto bg-white text-gray-900">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
         <p className="mt-2 text-sm text-gray-500">Last updated: March 12, 2026</p>
@@ -132,8 +132,8 @@ export default function PrivacyPolicy() {
               Under the GDPR and French data protection law (Loi Informatique et Libertés), you
               have the right to access, rectify, delete, and port your personal data. You may also
               object to or restrict processing. To exercise these rights, contact us at{' '}
-              <a href="mailto:privacy@publicdatamaps.com" className="underline hover:text-gray-900">
-                privacy@publicdatamaps.com
+              <a href="mailto:wintgensromain@gmail.com" className="underline hover:text-gray-900">
+                romainwintgens@gmail.com
               </a>
               .
             </p>
@@ -162,8 +162,8 @@ export default function PrivacyPolicy() {
             <h2 className="text-lg font-semibold text-gray-900">10. Contact</h2>
             <p className="mt-2">
               For any privacy-related questions, reach us at{' '}
-              <a href="mailto:privacy@publicdatamaps.com" className="underline hover:text-gray-900">
-                privacy@publicdatamaps.com
+              <a href="mailto:wintgensromain@gmail.com" className="underline hover:text-gray-900">
+                wintgensromain@gmail.com
               </a>
               .
             </p>

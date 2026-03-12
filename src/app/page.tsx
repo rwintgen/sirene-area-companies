@@ -1532,16 +1532,9 @@ export default function Home() {
 
         {/* Footer */}
         <div className={`flex-shrink-0 px-5 py-3 border-t flex items-center ${d.footer}`}>
-          <div className="flex-1 flex flex-col gap-0.5">
-            <p className={`text-[10px] ${d.footerText}`}>
-              Data source: SIRENE (INSEE) &middot; Open Data
-            </p>
-            <p className={`text-[10px] ${d.footerText}`}>
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline opacity-60 hover:opacity-100 transition-opacity">Privacy</a>
-              <span className="opacity-40 mx-1">&middot;</span>
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline opacity-60 hover:opacity-100 transition-opacity">Terms</a>
-            </p>
-          </div>
+          <p className={`text-[10px] flex-1 ${d.footerText}`}>
+            Data source: SIRENE (INSEE) &middot; Open Data
+          </p>
           <button
             onClick={() => { if (!user) { setAuthOpen(true) } else { setExportOpen(true) } }}
             disabled={companies.length === 0}
@@ -1557,6 +1550,11 @@ export default function Home() {
             </svg>
             Export
           </button>
+        </div>
+        <div className={`flex-shrink-0 px-5 py-2 border-t flex items-center justify-center gap-3 ${d.footer}`}>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className={`text-[10px] hover:underline transition-opacity ${isDark ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'}`}>Privacy Policy</a>
+          <span className={`text-[10px] ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>&middot;</span>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className={`text-[10px] hover:underline transition-opacity ${isDark ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'}`}>Terms of Service</a>
         </div>
           </div>
         </div>

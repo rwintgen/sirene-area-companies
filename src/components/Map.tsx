@@ -13,14 +13,14 @@ const FRANCE_ZOOM = 6
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
 const defaultIcon = new L.Icon({
-  iconUrl: '/map-pin.png',
+  iconUrl: '/app/map-pin.png',
   iconSize: [24, 24],
   iconAnchor: [12, 12],
   popupAnchor: [0, -16],
 });
 
 const selectedIcon = new L.Icon({
-  iconUrl: '/map-pin.png',
+  iconUrl: '/app/map-pin.png',
   iconSize: [36, 36],
   iconAnchor: [18, 18],
   popupAnchor: [0, -22],

@@ -47,7 +47,6 @@ export const en = {
       { title: 'Filter & sort', description: 'Narrow results by activity code (NAF), workforce range, legal status, and more. Sort by any column to find exactly what you need.' },
       { title: 'Export anywhere', description: 'Export your results as CSV or JSON with one click. Choose which columns to include and use the data in your own tools.' },
       { title: 'AI-powered overviews', description: 'Get instant AI-generated summaries of any company — key metrics, activity context, and related insights at a glance.' },
-      { title: 'Team workspaces', description: 'Create an organization, invite your team, and share saved searches. Per-seat billing keeps costs transparent.' },
       { title: 'Saved searches', description: 'Save any search area and filters to revisit later. Synced across devices so your work is always accessible.' },
     ],
     pricingBefore: 'Simple, ',
@@ -214,12 +213,6 @@ export const en = {
         subtitle: 'Pick up right where you left off.',
         description: 'Save any search — the geographic area, filters, column configuration, and sort order — and restore it later with one click. Synced across devices via your account.',
         features: ['Save full search state (area + filters + columns)', 'Restore with one click', 'Cross-device sync via cloud', 'Rename and organize saved searches', 'Share searches within your organization'],
-      },
-      {
-        title: 'Team collaboration',
-        subtitle: 'Work together on company research.',
-        description: 'Create an organization, invite team members by email, and manage seats from a dedicated dashboard. Per-seat billing keeps costs predictable as your team grows.',
-        features: ['Create and manage organizations', 'Invite members by email with instant access', 'Role-based seat management', 'Per-seat billing with transparent pricing', 'Shared saved searches across the team'],
       },
       {
         title: 'Plug in your own data',

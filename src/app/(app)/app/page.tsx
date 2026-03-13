@@ -846,7 +846,7 @@ export default function Home() {
     return (
       <div className={`flex h-screen items-center justify-center ${isDark ? 'bg-gray-950' : 'bg-white'}`}>
         <div className="flex flex-col items-center gap-4 w-64">
-          <img src="/logo-full.png" alt="Public Data Maps" className={`h-14 w-auto ${isDark ? 'invert' : ''}`} />
+          <img src="/brand/logo-full.png" alt="Public Data Maps" className={`h-14 w-auto ${isDark ? 'invert' : ''}`} />
           <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
             <div
               className="h-full rounded-full transition-[width] duration-500 ease-out"
@@ -944,7 +944,7 @@ export default function Home() {
         {/* Header */}
         <div className={`px-5 pt-5 pb-4 border-b ${d.headerBorder}`}>
           <div className="flex items-center justify-between">
-            <img src="/logo-full.png" alt="Public Data Maps" className={`h-12 w-auto ${isDark ? 'invert' : ''}`} />
+            <img src="/brand/logo-full.png" alt="Public Data Maps" className={`h-12 w-auto ${isDark ? 'invert' : ''}`} />
 
             <div className="flex items-center gap-1.5">
               {/* Search toggle */}

@@ -47,7 +47,6 @@ export const fr = {
       { title: 'Filtrez et triez', description: 'Affinez les résultats par code NAF, tranche d\u2019effectif, statut juridique, et plus encore. Triez par n\u2019importe quelle colonne.' },
       { title: 'Exportez partout', description: 'Exportez vos résultats en CSV ou JSON en un clic. Choisissez les colonnes à inclure et utilisez les données dans vos propres outils.' },
       { title: 'Résumés IA', description: 'Obtenez des résumés instantanés générés par IA pour chaque entreprise — indicateurs clés, contexte d\u2019activité et analyses.' },
-      { title: 'Espaces d\u2019équipe', description: 'Créez une organisation, invitez votre équipe et partagez les recherches sauvegardées. Facturation par siège transparente.' },
       { title: 'Recherches sauvegardées', description: 'Sauvegardez vos zones de recherche et filtres pour y revenir plus tard. Synchronisé entre vos appareils.' },
     ],
     pricingBefore: 'Des prix simples et ',
@@ -214,12 +213,6 @@ export const fr = {
         subtitle: 'Reprenez exactement où vous en étiez.',
         description: 'Sauvegardez n\u2019importe quelle recherche — la zone géographique, les filtres, la configuration des colonnes et l\u2019ordre de tri — et restaurez-la plus tard en un clic. Synchronisé entre vos appareils.',
         features: ['Sauvegardez l\u2019état complet (zone + filtres + colonnes)', 'Restauration en un clic', 'Synchronisation cloud entre appareils', 'Renommez et organisez vos recherches', 'Partagez au sein de votre organisation'],
-      },
-      {
-        title: 'Collaboration en équipe',
-        subtitle: 'Travaillez ensemble sur la recherche d\u2019entreprises.',
-        description: 'Créez une organisation, invitez des membres par email et gérez les sièges depuis un tableau de bord dédié. La facturation par siège garde les coûts prévisibles.',
-        features: ['Créez et gérez des organisations', 'Invitez des membres par email avec accès instantané', 'Gestion des sièges par rôle', 'Facturation par siège avec tarification transparente', 'Recherches sauvegardées partagées dans l\u2019équipe'],
       },
       {
         title: 'Intégrez vos propres données',

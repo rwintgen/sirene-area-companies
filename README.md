@@ -1,4 +1,4 @@
-![Public Data Maps](./public/logo-full.png)
+![Public Data Maps](./public/brand/logo-full.png)
 
 # Public Data Maps (France)
 

@@ -898,7 +898,7 @@ export default function OrgDashboard() {
           </svg>
           Back to map
         </a>
-        <img src="/logo-full.png" alt="Public Data Maps" className={`h-7 w-auto ${isDark ? 'invert' : ''}`} />
+        <img src="/brand/logo-full.png" alt="Public Data Maps" className={`h-7 w-auto ${isDark ? 'invert' : ''}`} />
         <div className="w-20" />
       </header>
 

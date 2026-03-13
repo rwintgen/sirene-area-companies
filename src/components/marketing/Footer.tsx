@@ -34,7 +34,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center">
-              <Image src="/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
+              <Image src="/brand/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
             </Link>
             <p className="mt-3 text-[13px] text-gray-500 leading-relaxed max-w-[240px]">
               {t.footer.description}

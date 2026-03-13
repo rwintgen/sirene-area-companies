@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthState } from 'react-firebase-hooks/auth'
+import { signOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import AuthModal from '@/components/AuthModal'
 import { useLocale, type Locale } from '@/lib/i18n'
@@ -81,7 +82,9 @@ export default function Navbar() {
   const [user] = useAuthState(auth)
   const isSignedIn = !!user
   const [authOpen, setAuthOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const isSigningIn = useRef(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)
 
   useEffect(() => {
@@ -103,9 +106,17 @@ export default function Navbar() {
     }
     mq.addEventListener('change', onSystemChange)
 
+    const onClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+
     return () => {
       window.removeEventListener('scroll', onScroll)
       mq.removeEventListener('change', onSystemChange)
+      document.removeEventListener('mousedown', onClickOutside)
     }
   }, [])
 
@@ -147,17 +158,44 @@ export default function Navbar() {
           <ThemeToggle theme={theme} setTheme={setTheme} />
           {isSignedIn ? (
             <>
-              <Link href="/app" className="flex items-center">
-                {user?.photoURL ? (
-                  <Image src={user.photoURL} alt="" width={28} height={28} className="rounded-full" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                    </svg>
+              <div ref={profileRef} className="relative">
+                <button onClick={() => setProfileOpen(!profileOpen)} className="flex items-center">
+                  {user?.photoURL ? (
+                    <Image src={user.photoURL} alt="" width={28} height={28} className="rounded-full" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-100 dark:border-white/10 bg-white dark:bg-gray-900 shadow-lg py-1 z-50">
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
+                      {user?.displayName && (
+                        <p className="text-[13px] font-medium text-gray-900 dark:text-white truncate">{user.displayName}</p>
+                      )}
+                      {user?.email && (
+                        <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                      )}
+                    </div>
+                    <Link
+                      href="/app"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-4 py-2.5 text-[13px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      {t.nav.goToApp}
+                    </Link>
+                    <button
+                      onClick={() => { signOut(auth); setProfileOpen(false) }}
+                      className="w-full text-left px-4 py-2.5 text-[13px] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      {t.nav.signOut}
+                    </button>
                   </div>
                 )}
-              </Link>
+              </div>
               <Link
                 href="/app"
                 className="text-[13px] font-medium px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors"
@@ -222,23 +260,19 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               {isSignedIn ? (
                 <>
-                  <Link href="/app" className="flex items-center">
-                    {user?.photoURL ? (
-                      <Image src={user.photoURL} alt="" width={28} height={28} className="rounded-full" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                        </svg>
-                      </div>
-                    )}
-                  </Link>
                   <Link
                     href="/app"
+                    onClick={() => setMobileOpen(false)}
                     className="text-[14px] font-medium px-4 py-2.5 rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors"
                   >
                     {t.nav.goToApp}
                   </Link>
+                  <button
+                    onClick={() => { signOut(auth); setMobileOpen(false) }}
+                    className="text-[14px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors py-2"
+                  >
+                    {t.nav.signOut}
+                  </button>
                 </>
               ) : (
                 <>

@@ -9,6 +9,7 @@ export const en = {
     signIn: 'Sign in',
     tryFree: 'Try free →',
     goToApp: 'Go to app →',
+    signOut: 'Sign out',
   },
 
   footer: {

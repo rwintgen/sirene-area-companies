@@ -9,6 +9,7 @@ export const fr = {
     signIn: 'Connexion',
     tryFree: 'Essai gratuit →',
     goToApp: 'Aller à l\u2019app →',
+    signOut: 'Déconnexion',
   },
 
   footer: {

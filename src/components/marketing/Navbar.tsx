@@ -129,17 +129,18 @@ export default function Navbar() {
       }`}
     >
       <nav className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center">
+        <Link href={`/${locale}`} className="flex items-center">
           <Image src="/brand/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
+            const fullHref = `/${locale}${link.href}`
+            const isActive = pathname === fullHref || pathname.startsWith(fullHref + '/')
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={fullHref}
                 className={`text-[13px] transition-colors ${
                   isActive
                     ? 'text-gray-900 dark:text-white font-medium'
@@ -235,11 +236,12 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="md:hidden bg-white/95 dark:bg-gray-950/95 backdrop-blur-md border-t border-gray-200 dark:border-white/5 px-6 pb-6 pt-2">
           {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
+            const fullHref = `/${locale}${link.href}`
+            const isActive = pathname === fullHref || pathname.startsWith(fullHref + '/')
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={fullHref}
                 onClick={() => setMobileOpen(false)}
                 className={`block py-3 text-[14px] transition-colors border-b border-gray-100 dark:border-white/5 ${
                   isActive

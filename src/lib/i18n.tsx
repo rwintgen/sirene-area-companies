@@ -1,8 +1,11 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, type ReactNode } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 
 export type Locale = 'en' | 'fr'
+
+const LOCALES: Locale[] = ['en', 'fr']
 
 interface LocaleContextValue {
   locale: Locale
@@ -11,22 +14,19 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue>({ locale: 'en', setLocale: () => {} })
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en')
-
-  useEffect(() => {
-    const stored = localStorage.getItem('site-locale') as Locale | null
-    if (stored === 'en' || stored === 'fr') {
-      setLocaleState(stored)
-      document.documentElement.setAttribute('data-locale', stored)
-    }
-  }, [])
+export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
 
   const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l)
-    localStorage.setItem('site-locale', l)
+    document.cookie = `site-locale=${l};path=/;max-age=31536000;SameSite=Lax`
     document.documentElement.setAttribute('data-locale', l)
-  }, [])
+    const segments = pathname.split('/')
+    if (LOCALES.includes(segments[1] as Locale)) {
+      segments[1] = l
+    }
+    router.push(segments.join('/'))
+  }, [pathname, router])
 
   return (
     <LocaleContext.Provider value={{ locale, setLocale }}>

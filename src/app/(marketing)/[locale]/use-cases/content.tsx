@@ -133,7 +133,7 @@ export default function UseCasesContent() {
               {t.useCases.ctaButton}
             </Link>
             <Link
-              href="/enterprise"
+              href={`/${locale}/enterprise`}
               className="px-8 py-3 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium text-[15px] hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.nav.enterprise}

@@ -40,7 +40,7 @@ export default function EnterpriseContent() {
               {t.enterprise.ctaPrimary}
             </Link>
             <Link
-              href="/contact"
+              href={`/${locale}/contact`}
               className="px-8 py-3 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium text-[15px] hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.enterprise.ctaSecondary}
@@ -83,7 +83,7 @@ export default function EnterpriseContent() {
           </div>
           <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {t.enterprise.useCases.map((uc, i) => (
-              <Link key={i} href="/use-cases" className="block p-6 rounded-xl border border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02] hover:border-gray-200 dark:hover:border-white/10 transition-all group">
+              <Link key={i} href={`/${locale}/use-cases`} className="block p-6 rounded-xl border border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02] hover:border-gray-200 dark:hover:border-white/10 transition-all group">
                 <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">{uc.title}</h3>
                 <p className="mt-2 text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed">{uc.description}</p>
                 <p className="mt-3 text-[11px] text-violet-600 dark:text-violet-400 font-medium group-hover:text-violet-500 dark:group-hover:text-violet-300 transition-colors">{uc.caseStudy}</p>
@@ -92,7 +92,7 @@ export default function EnterpriseContent() {
           </div>
           <div className="mt-10 text-center">
             <Link
-              href="/use-cases"
+              href={`/${locale}/use-cases`}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 text-[14px] font-medium hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.enterprise.viewAllUseCases}
@@ -117,7 +117,7 @@ export default function EnterpriseContent() {
               {t.enterprise.ctaBottomPrimary}
             </Link>
             <Link
-              href="/contact"
+              href={`/${locale}/contact`}
               className="px-8 py-3 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium text-[15px] hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.enterprise.ctaBottomSecondary}

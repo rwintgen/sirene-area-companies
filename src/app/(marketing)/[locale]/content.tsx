@@ -43,7 +43,7 @@ export default function HomeContent() {
               {t.home.ctaPrimary}
             </Link>
             <Link
-              href="/features"
+              href={`/${locale}/features`}
               className="px-8 py-3 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium text-[15px] hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.home.ctaSecondary}
@@ -173,7 +173,7 @@ export default function HomeContent() {
 
           <p className="mt-8 text-center text-[13px] text-gray-500">
             {t.home.pricingNote}{' '}
-            <Link href="/pricing" className="text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300 transition-colors">
+            <Link href={`/${locale}/pricing`} className="text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300 transition-colors">
               {t.home.pricingLink}
             </Link>
           </p>
@@ -190,13 +190,13 @@ export default function HomeContent() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/enterprise"
+              href={`/${locale}/enterprise`}
               className="px-8 py-3 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium text-[15px] hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
             >
               {t.home.enterpriseCta}
             </Link>
             <Link
-              href="/contact"
+              href={`/${locale}/contact`}
               className="px-8 py-3 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium text-[15px] hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {t.home.enterpriseSecondaryCta}

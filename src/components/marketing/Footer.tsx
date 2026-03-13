@@ -9,22 +9,24 @@ export default function Footer() {
   const { locale } = useLocale()
   const t = translations[locale]
 
+  const l = (path: string) => path.startsWith('/app') || path.startsWith('mailto:') ? path : `/${locale}${path}`
+
   const productLinks = [
-    { href: '/features', label: t.nav.features },
-    { href: '/use-cases', label: t.nav.useCases },
-    { href: '/resources', label: t.nav.resources },
-    { href: '/pricing', label: t.nav.pricing },
-    { href: '/enterprise', label: t.nav.enterprise },
+    { href: l('/features'), label: t.nav.features },
+    { href: l('/use-cases'), label: t.nav.useCases },
+    { href: l('/resources'), label: t.nav.resources },
+    { href: l('/pricing'), label: t.nav.pricing },
+    { href: l('/enterprise'), label: t.nav.enterprise },
     { href: '/app', label: t.footer.launchApp },
   ]
 
   const legalLinks = [
-    { href: '/privacy', label: t.footer.privacy },
-    { href: '/terms', label: t.footer.terms },
+    { href: l('/privacy'), label: t.footer.privacy },
+    { href: l('/terms'), label: t.footer.terms },
   ]
 
   const supportLinks = [
-    { href: '/contact', label: t.nav.contact },
+    { href: l('/contact'), label: t.nav.contact },
     { href: 'mailto:wintgensromain@gmail.com', label: t.footer.emailSupport },
   ]
 
@@ -33,7 +35,7 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center">
+            <Link href={`/${locale}`} className="flex items-center">
               <Image src="/brand/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
             </Link>
             <p className="mt-3 text-[13px] text-gray-500 leading-relaxed max-w-[240px]">

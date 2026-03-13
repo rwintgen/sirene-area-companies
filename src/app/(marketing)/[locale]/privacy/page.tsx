@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
+import { pageAlternates } from '@/lib/alternates'
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy — Public Data Maps',
+interface Props { params: { locale: string } }
+
+export function generateMetadata({ params }: Props): Metadata {
+  return {
+    title: 'Privacy Policy — Public Data Maps',
+    alternates: pageAlternates(params.locale, '/privacy'),
+  }
 }
 
 export default function PrivacyPolicy() {

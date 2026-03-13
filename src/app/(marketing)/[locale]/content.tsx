@@ -68,7 +68,10 @@ export default function HomeContent() {
               muted
               loop
               playsInline
+              preload="auto"
+              webkit-playsinline="true"
               className="w-full h-full object-cover"
+              ref={(el) => { el?.play().catch(() => {}) }}
             >
               <source src="/marketing/demo-loop.mp4" type="video/mp4" />
             </video>

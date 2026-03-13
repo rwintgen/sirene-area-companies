@@ -37,7 +37,7 @@ export function middleware(request: NextRequest) {
     const locale = getLocale(request)
     const url = request.nextUrl.clone()
     url.pathname = `/${locale}${pathname === '/' ? '' : pathname}`
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(url, { status: 308 })
   }
 
   return NextResponse.next()

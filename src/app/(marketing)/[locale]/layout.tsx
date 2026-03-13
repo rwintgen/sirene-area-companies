@@ -12,11 +12,16 @@ interface Props {
   params: { locale: string }
 }
 
+function HtmlLang({ locale }: { locale: string }) {
+  return <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang="${locale}"` }} />
+}
+
 export default function LocaleLayout({ children, params }: Props) {
   if (!LOCALES.includes(params.locale as Locale)) notFound()
 
   return (
     <LocaleProvider locale={params.locale as Locale}>
+      <HtmlLang locale={params.locale} />
       {children}
     </LocaleProvider>
   )

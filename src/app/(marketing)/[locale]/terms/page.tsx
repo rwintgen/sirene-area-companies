@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
+import { pageAlternates } from '@/lib/alternates'
 
-export const metadata: Metadata = {
-  title: 'Terms of Service — Public Data Maps',
+interface Props { params: { locale: string } }
+
+export function generateMetadata({ params }: Props): Metadata {
+  return {
+    title: 'Terms of Service — Public Data Maps',
+    alternates: pageAlternates(params.locale, '/terms'),
+  }
 }
 
 export default function TermsOfService() {

@@ -7,6 +7,7 @@ import 'leaflet-draw/dist/leaflet.draw.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://publicdatamaps.com'),
   title: 'Public Data Maps - France',
   description: 'Draw an area on the map and discover every registered company inside it',
   icons: {

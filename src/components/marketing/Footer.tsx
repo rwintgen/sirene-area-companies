@@ -33,9 +33,8 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-gray-900 dark:text-white">
-              <Image src="/logo-mini.png" alt="" width={20} height={20} className="h-5 w-auto dark:invert" />
-              Public Data Maps
+            <Link href="/" className="flex items-center">
+              <Image src="/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
             </Link>
             <p className="mt-3 text-[13px] text-gray-500 leading-relaxed max-w-[240px]">
               {t.footer.description}

@@ -129,9 +129,8 @@ export default function Navbar() {
       }`}
     >
       <nav className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-gray-900 dark:text-white">
-          <Image src="/logo-mini.png" alt="" width={20} height={20} className="h-5 w-auto dark:invert" />
-          Public Data Maps
+        <Link href="/" className="flex items-center">
+          <Image src="/logo-full.png" alt="Public Data Maps" width={160} height={28} className="h-6 w-auto dark:invert" />
         </Link>
 
         <div className="hidden md:flex items-center gap-8">

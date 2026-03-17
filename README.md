@@ -368,7 +368,6 @@ The model receives the full SIRENE record and is instructed to search for: compa
 - [x] Geocoding search bar
 - [x] PostGIS backend for full-dataset performance
 - [x] Deploy via Firebase App Hosting
-- [ ] Import full SIRENE dataset into Cloud SQL
 - [x] Increase result cap beyond 5 000 — now up to 50,000 results (individual plan)
 - [x] Cluster map pins for performance with large result sets
 - [x] Audit and fix all quick filter labels
@@ -379,9 +378,13 @@ The model receives the full SIRENE record and is instructed to search for: compa
 - [x] Create company dashboard (seats/permissions management, org settings)
 - [x] Add AI overview
 - [x] Set up custom domain (publicdatamaps.com) with Firebase App Hosting, Resend, and Stripe
-- [ ] Create landing page
+- [x] Create landing page
+- [x] Add AND/OR logic between filters
+- [x] Add default pre-search quick filters
+- [x] Add default hidden fields (keep only most relevant ones)
+- [ ] Regroup default pre-search quick filters and default hidden fields in a new "Query parameters" settings section
+- [ ] Import full SIRENE dataset into Cloud SQL + Create indexes on pre-search quick filters
 - [ ] Create private CRM dashboard
 - [ ] Add more auth features (forgot passsword, SSO sign-in, company sign in)
 - [ ] Add other data types beyond companies (e.g. schools, health facilities)
 - [ ] Mobile-responsive layout
-- [ ] Create landing page

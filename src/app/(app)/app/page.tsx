@@ -35,7 +35,7 @@ import { signOut, sendEmailVerification } from 'firebase/auth'
 import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore'
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 
-const HIDDEN_COLS = ['Géolocalisation de l\'établissement']
+const DEFAULT_HIDDEN_FIELDS = ['Géolocalisation de l\'établissement']
 const DEFAULT_LIST_COLS = ['Dénomination de l\'unité légale', 'Code postal de l\'établissement', 'Commune de l\'établissement']
 const DEFAULT_POPUP_COLS = ['Dénomination de l\'unité légale', 'SIRET', 'Code postal de l\'établissement', 'Commune de l\'établissement']
 
@@ -92,6 +92,7 @@ export default function Home() {
 
   const [columns, setColumns] = useState<string[]>([])
   const [displayColumns, setDisplayColumns] = useState<string[]>([])
+  const [hiddenFields, setHiddenFields] = useState<string[]>([...DEFAULT_HIDDEN_FIELDS])
   const [listColumns, setListColumns] = useState<string[]>(DEFAULT_LIST_COLS)
   const [popupColumns, setPopupColumns] = useState<string[]>(DEFAULT_POPUP_COLS)
 
@@ -125,6 +126,15 @@ export default function Home() {
   const [preQueryOrgIds, setPreQueryOrgIds] = useState<string[]>([])
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark'
+
+  useEffect(() => {
+    const hidden = new Set(hiddenFields)
+    const display = columns.filter((c) => !hidden.has(c))
+    setDisplayColumns(display)
+    setListColumns((prev) => prev.filter((c) => display.includes(c)))
+    setPopupColumns((prev) => prev.filter((c) => display.includes(c)))
+  }, [columns, hiddenFields])
+
   const activeFilterColumns = useMemo(() => {
     if (connectorSource) {
       const conn = orgConnectors.find((c) => c.id === connectorSource)
@@ -246,6 +256,7 @@ export default function Home() {
       profileLoaded.current = false
       setDefaultPresets([...DEFAULT_PRE_QUERY_PRESETS])
       setPreQueryPresets([...DEFAULT_PRE_QUERY_PRESETS])
+      setHiddenFields([...DEFAULT_HIDDEN_FIELDS])
       setBootSteps((s) => ({ ...s, preferences: true }))
       return
     }
@@ -254,12 +265,14 @@ export default function Home() {
       const cached = localStorage.getItem(key)
       if (cached) {
         const p = JSON.parse(cached)
+        const resolvedHidden = Array.isArray(p.hiddenFields) ? p.hiddenFields : [...DEFAULT_HIDDEN_FIELDS]
+        setHiddenFields(resolvedHidden)
         if (Array.isArray(p.listColumns) && p.listColumns.length > 0) setListColumns(p.listColumns)
         if (Array.isArray(p.popupColumns) && p.popupColumns.length > 0) setPopupColumns(p.popupColumns)
         if (p.mapStyle) setMapStyle(p.mapStyle)
         if (p.themeMode) setThemeMode(p.themeMode)
         else if (typeof p.isDark === 'boolean') setThemeMode(p.isDark ? 'dark' : 'light')
-        if (Array.isArray(p.customPresets)) setCustomPresets(p.customPresets)
+        if (Array.isArray(p.customPresets)) setCustomPresets(p.customPresets.filter((cp: CustomPreset) => !resolvedHidden.includes(cp.column)))
         if (typeof p.customResultLimit === 'number') setCustomResultLimit(p.customResultLimit)
         if (Array.isArray(p.defaultPresets)) {
           setDefaultPresets(p.defaultPresets)
@@ -274,12 +287,14 @@ export default function Home() {
       .then((snap) => {
         if (snap.exists()) {
           const p = snap.data()
+          const resolvedHidden = Array.isArray(p.hiddenFields) ? p.hiddenFields : [...DEFAULT_HIDDEN_FIELDS]
+          setHiddenFields(resolvedHidden)
           if (Array.isArray(p.listColumns) && p.listColumns.length > 0) setListColumns(p.listColumns)
           if (Array.isArray(p.popupColumns) && p.popupColumns.length > 0) setPopupColumns(p.popupColumns)
           if (p.mapStyle) setMapStyle(p.mapStyle)
           if (p.themeMode) setThemeMode(p.themeMode)
           else if (typeof p.isDark === 'boolean') setThemeMode(p.isDark ? 'dark' : 'light')
-          if (Array.isArray(p.customPresets)) setCustomPresets(p.customPresets)
+          if (Array.isArray(p.customPresets)) setCustomPresets(p.customPresets.filter((cp: CustomPreset) => !resolvedHidden.includes(cp.column)))
           if (typeof p.customResultLimit === 'number') setCustomResultLimit(p.customResultLimit)
           if (Array.isArray(p.defaultPresets)) {
             setDefaultPresets(p.defaultPresets)
@@ -306,7 +321,7 @@ export default function Home() {
    */
   useEffect(() => {
     if (!user || !profileLoaded.current) return
-    const prefs = { listColumns, popupColumns, mapStyle, themeMode, customPresets, customResultLimit, defaultPresets }
+    const prefs = { listColumns, popupColumns, mapStyle, themeMode, customPresets, customResultLimit, defaultPresets, hiddenFields }
     try { localStorage.setItem(prefsKey(user.uid), JSON.stringify(prefs)) } catch (_) {}
     const timer = setTimeout(() => {
       setDoc(doc(db, 'userProfiles', user.uid), prefs, { merge: true })
@@ -314,7 +329,7 @@ export default function Home() {
         .catch((e) => console.warn('Firestore prefs save failed:', e))
     }, 1000)
     return () => clearTimeout(timer)
-  }, [user, listColumns, popupColumns, mapStyle, themeMode, customPresets, customResultLimit, defaultPresets])
+  }, [user, listColumns, popupColumns, mapStyle, themeMode, customPresets, customResultLimit, defaultPresets, hiddenFields])
 
   useEffect(() => {
     fetch('/api/search')
@@ -322,10 +337,6 @@ export default function Home() {
       .then((data) => {
         if (data.columns) {
           setColumns(data.columns)
-          const display = data.columns.filter((c: string) => !HIDDEN_COLS.includes(c))
-          setDisplayColumns(display)
-          setListColumns((prev) => prev.filter((c) => display.includes(c)))
-          setPopupColumns((prev) => prev.filter((c) => display.includes(c)))
         }
       })
       .catch(console.error)
@@ -491,8 +502,6 @@ export default function Home() {
       if (typeof meta.resultLimit === 'number') setResultLimit(meta.resultLimit)
       if (meta.columns) {
         setColumns(meta.columns)
-        const display = meta.columns.filter((c: string) => !HIDDEN_COLS.includes(c))
-        setDisplayColumns(display)
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return

@@ -370,24 +370,30 @@ export default function SettingsModal({
                   <div className={`rounded-lg border p-3 space-y-1.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                     {PRESET_GROUPS.map((group) => {
                       const presets = PRESET_FILTERS.filter((p) => p.group === group)
+                      const activeInGroup = presets.filter((p) => defaultPresets.includes(p.id))
                       return (
                         <div key={group} className="mb-1 last:mb-0">
                           <SectionTitle isDark={isDark} className="mb-0.5">{group}</SectionTitle>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 items-center">
                             {presets.map((preset) => {
                               const active = defaultPresets.includes(preset.id)
+                              const activeIdx = activeInGroup.indexOf(preset)
                               return (
-                                <PresetPill
-                                  key={preset.id}
-                                  label={preset.label}
-                                  active={active}
-                                  isDark={isDark}
-                                  onClick={() => onDefaultPresetsChange(
-                                    active
-                                      ? defaultPresets.filter((id) => id !== preset.id)
-                                      : [...defaultPresets, preset.id]
+                                <span key={preset.id} className="contents">
+                                  {active && activeIdx > 0 && (
+                                    <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>or</span>
                                   )}
-                                />
+                                  <PresetPill
+                                    label={preset.label}
+                                    active={active}
+                                    isDark={isDark}
+                                    onClick={() => onDefaultPresetsChange(
+                                      active
+                                        ? defaultPresets.filter((id) => id !== preset.id)
+                                        : [...defaultPresets, preset.id]
+                                    )}
+                                  />
+                                </span>
                               )
                             })}
                           </div>

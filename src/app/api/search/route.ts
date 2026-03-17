@@ -114,8 +114,8 @@ const PRESET_SQL: Record<string, string> = {
 const PRESET_GROUP: Record<string, string> = {
   active: 'Status',
   closed: 'Status',
-  hq: 'Status',
-  diffusible: 'Status',
+  hq: 'Flags',
+  diffusible: 'Flags',
   company: 'Legal form',
   freelance: 'Legal form',
   sas: 'Legal form',

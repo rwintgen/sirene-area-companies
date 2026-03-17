@@ -94,14 +94,14 @@ export const PRESET_FILTERS: PresetFilter[] = [
   {
     id: 'hq',
     label: 'HQ only',
-    group: 'Status',
+    group: 'Flags',
     description: 'Only headquarter establishments (siège social)',
     test: (f) => f[COL.siege] === 'oui',
   },
   {
     id: 'diffusible',
     label: 'Public',
-    group: 'Status',
+    group: 'Flags',
     description: 'Establishment that has opted into public diffusion (non-protected data)',
     test: (f) => f[COL.diffusionEtab] === 'O',
   },
@@ -288,7 +288,7 @@ export const PRESET_FILTERS: PresetFilter[] = [
 ]
 
 /** Group labels in display order. */
-export const PRESET_GROUPS = ['Status', 'Legal form', 'Size', 'Values', 'Sector'] as const
+export const PRESET_GROUPS = ['Status', 'Flags', 'Legal form', 'Size', 'Values', 'Sector'] as const
 
 /** Baseline pre-search quick filters applied by default (including anonymous usage). */
 export const DEFAULT_PRE_QUERY_PRESETS = ['active', 'company'] as const

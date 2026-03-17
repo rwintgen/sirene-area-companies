@@ -15,6 +15,7 @@ import { auth } from '@/lib/firebase'
 import { db } from '@/lib/firebase'
 import { doc, setDoc } from 'firebase/firestore'
 import { Modal, CloseButton } from '@/components/ui'
+import { buildDefaultFieldPrefs } from '@/lib/defaultFields'
 
 interface Props {
   isDark: boolean
@@ -37,9 +38,25 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
   const [resetLoading, setResetLoading] = useState(false)
   const [verificationSent, setVerificationSent] = useState(false)
 
+  const getCurrentColumns = async (): Promise<string[]> => {
+    try {
+      const res = await fetch('/api/search')
+      if (!res.ok) return []
+      const data = await res.json()
+      return Array.isArray(data?.columns) ? data.columns : []
+    } catch {
+      return []
+    }
+  }
+
   const ensureDefaultQuickFilters = async (uid: string) => {
+    const columns = await getCurrentColumns()
+    const fieldPrefs = buildDefaultFieldPrefs(columns)
     await setDoc(doc(db, 'userProfiles', uid), {
       defaultPresets: ['active', 'company'],
+      hiddenFields: fieldPrefs.hiddenFields,
+      listColumns: fieldPrefs.listColumns,
+      popupColumns: fieldPrefs.popupColumns,
     }, { merge: true })
   }
 

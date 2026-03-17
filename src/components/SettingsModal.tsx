@@ -31,9 +31,10 @@ interface SettingsModalProps {
   setThemeMode: (mode: 'system' | 'light' | 'dark') => void
   mapStyle: 'default' | 'themed' | 'satellite'
   setMapStyle: (style: 'default' | 'themed' | 'satellite') => void
+  globalVisibleCount: number
   listColumns: string[]
   popupColumns: string[]
-  onFieldsModal: (tab: 'list' | 'popup') => void
+  onFieldsModal: (tab: 'global' | 'list' | 'popup') => void
   onManagePlan: () => void
   onPaywall: (feature: string) => void
   onDeleteAccount: () => void
@@ -55,7 +56,6 @@ interface SettingsModalProps {
   onCustomResultLimitChange: (limit: number | null) => void
   defaultPresets: string[]
   onDefaultPresetsChange: (presets: string[]) => void
-  hiddenFields: string[]
   orgId: string | null
   orgRole: 'owner' | 'admin' | 'member' | null
   orgName: string | null
@@ -72,6 +72,7 @@ export default function SettingsModal({
   setThemeMode,
   mapStyle,
   setMapStyle,
+  globalVisibleCount,
   listColumns,
   popupColumns,
   onFieldsModal,
@@ -96,7 +97,6 @@ export default function SettingsModal({
   onCustomResultLimitChange,
   defaultPresets,
   onDefaultPresetsChange,
-  hiddenFields,
   orgId,
   orgRole,
   orgName,
@@ -352,27 +352,29 @@ export default function SettingsModal({
                 <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Query Parameters</div>
                 <div className={`rounded-lg border p-3 space-y-2.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                   <div>
-                    <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${t.label}`}>Default Visible Fields</div>
-                    <div className="flex gap-2">
+                    <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${t.label}`}>Default Fields</div>
+                    <div className="grid grid-cols-3 gap-2">
                       <button
-                        onClick={() => { onFieldsModal('list'); handleClose() }}
-                        className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                        onClick={() => onFieldsModal('global')}
+                        className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                      >
+                        Global ({globalVisibleCount})
+                      </button>
+                      <button
+                        onClick={() => onFieldsModal('list')}
+                        className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
                       >
                         List ({listColumns.length})
                       </button>
                       <button
-                        onClick={() => { onFieldsModal('popup'); handleClose() }}
-                        className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                        onClick={() => onFieldsModal('popup')}
+                        className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
                       >
                         Popup ({popupColumns.length})
                       </button>
                     </div>
-                  </div>
-
-                  <div>
-                    <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${t.label}`}>Default Hidden Fields</div>
-                    <p className={`text-[10px] ${t.label}`}>
-                      {hiddenFields.length} fields are hidden by default to reduce clutter.
+                    <p className={`text-[10px] mt-1 ${t.label}`}>
+                      Global controls hidden fields. List and Popup control visible fields for each view.
                     </p>
                   </div>
 

@@ -7,10 +7,12 @@ interface Props {
   columns: string[]
   listColumns: string[]
   popupColumns: string[]
+  hiddenFields: string[]
   onListColumnsChange: (cols: string[]) => void
   onPopupColumnsChange: (cols: string[]) => void
+  onHiddenFieldsChange: (cols: string[]) => void
   isDark: boolean
-  initialTab?: 'list' | 'popup'
+  initialTab?: 'global' | 'list' | 'popup'
   onClose: () => void
 }
 
@@ -18,16 +20,35 @@ export default function ColumnConfig({
   columns,
   listColumns,
   popupColumns,
+  hiddenFields,
   onListColumnsChange,
   onPopupColumnsChange,
+  onHiddenFieldsChange,
   isDark,
   initialTab,
   onClose,
 }: Props) {
-  const [tab, setTab] = useState<'list' | 'popup'>(initialTab ?? 'list')
+  const [tab, setTab] = useState<'global' | 'list' | 'popup'>(initialTab ?? 'global')
 
-  const activeCols = tab === 'list' ? listColumns : popupColumns
-  const setActiveCols = tab === 'list' ? onListColumnsChange : onPopupColumnsChange
+  const visibleColumns = columns.filter((col) => !hiddenFields.includes(col))
+
+  const activeCols = tab === 'global'
+    ? visibleColumns
+    : tab === 'list'
+      ? listColumns
+      : popupColumns
+
+  const setActiveCols = (cols: string[]) => {
+    if (tab === 'global') {
+      onHiddenFieldsChange(columns.filter((col) => !cols.includes(col)))
+      return
+    }
+    if (tab === 'list') {
+      onListColumnsChange(cols)
+      return
+    }
+    onPopupColumnsChange(cols)
+  }
 
   const toggle = (col: string) => {
     if (activeCols.includes(col)) {
@@ -37,7 +58,9 @@ export default function ColumnConfig({
     }
   }
 
-  const allOn = () => setActiveCols([...columns])
+  const selectableColumns = tab === 'global' ? columns : visibleColumns
+
+  const allOn = () => setActiveCols([...selectableColumns])
   const allOff = () => setActiveCols([])
 
   const t = isDark
@@ -72,13 +95,13 @@ export default function ColumnConfig({
     <Modal isDark={isDark} onClose={onClose} zIndex="z-[9000]" className={`overflow-hidden ${t.bg}`}>
       {(handleClose) => (<>
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <h3 className={`text-sm font-semibold ${t.title}`}>Visible Columns</h3>
+        <h3 className={`text-sm font-semibold ${t.title}`}>Default Fields</h3>
         <CloseButton onClick={handleClose} isDark={isDark} />
       </div>
 
       {/* Tabs */}
       <div className={`flex gap-3 px-4 border-b ${t.tabBorder}`}>
-        {(['list', 'popup'] as const).map((t_) => (
+        {(['global', 'list', 'popup'] as const).map((t_) => (
           <button
             key={t_}
             onClick={() => setTab(t_)}
@@ -88,7 +111,7 @@ export default function ColumnConfig({
                 : `${t.tab} border-transparent`
             }`}
           >
-            {t_ === 'list' ? 'Result List' : 'Map Popup'}
+            {t_ === 'global' ? 'Global' : t_ === 'list' ? 'Result List' : 'Map Popup'}
           </button>
         ))}
       </div>
@@ -101,7 +124,7 @@ export default function ColumnConfig({
 
       {/* Column list */}
       <div className="max-h-[280px] overflow-y-auto px-2 py-1">
-        {columns.map((col) => {
+        {selectableColumns.map((col) => {
           const isActive = activeCols.includes(col)
           return (
             <button

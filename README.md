@@ -373,16 +373,15 @@ The model receives the full SIRENE record and is instructed to search for: compa
 - [x] Audit and fix all quick filter labels
 - [x] Add possibility to create custom filter labels
 - [x] Add pre-search labels to filter results in the back-end
-- [x] Add pre-search labels to filter results in the back-end
 - [x] Improve Loading elements (while querying and loading user data)
 - [x] Create company dashboard (seats/permissions management, org settings)
 - [x] Add AI overview
 - [x] Set up custom domain (publicdatamaps.com) with Firebase App Hosting, Resend, and Stripe
 - [x] Create landing page
-- [x] Add AND/OR logic between filters
-- [x] Add default pre-search quick filters
-- [x] Add default hidden fields (keep only most relevant ones)
-- [ ] Regroup default pre-search quick filters and default hidden fields in a new "Query parameters" settings section
+- [x] AND/OR logic between filters
+- [x] Default pre-search quick filters
+- [x] Default hidden fields (keep only most relevant ones)
+- [ ] Regroup default pre-search quick filters and default hidden fields in new "Query parameters" settings section
 - [ ] Import full SIRENE dataset into Cloud SQL + Create indexes on pre-search quick filters
 - [ ] Create private CRM dashboard
 - [ ] Add more auth features (forgot passsword, SSO sign-in, company sign in)

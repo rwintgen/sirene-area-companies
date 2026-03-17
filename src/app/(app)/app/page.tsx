@@ -13,6 +13,7 @@ import AIOverview from '@/components/AIOverview'
 import SettingsModal from '@/components/SettingsModal'
 import { Modal, CloseButton, PresetPill, CardSection, SectionTitle, ConfirmModal } from '@/components/ui'
 import { applyPresets, PRESET_FILTERS, PRESET_GROUPS, DEFAULT_PRE_QUERY_PRESETS, type CustomPreset } from '@/lib/presets'
+import { getDefaultHiddenFields, getDefaultListColumns, getDefaultPopupColumns, DEFAULT_LIST_COLS, DEFAULT_POPUP_COLS } from '@/lib/defaultFields'
 import {
   type UserTier,
   getUserKey,
@@ -34,10 +35,6 @@ import { useAuthState } from 'react-firebase-hooks/auth'
 import { signOut, sendEmailVerification } from 'firebase/auth'
 import { doc, getDoc, setDoc, collection, addDoc } from 'firebase/firestore'
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
-
-const DEFAULT_HIDDEN_FIELDS = ['Géolocalisation de l\'établissement']
-const DEFAULT_LIST_COLS = ['Dénomination de l\'unité légale', 'Code postal de l\'établissement', 'Commune de l\'établissement']
-const DEFAULT_POPUP_COLS = ['Dénomination de l\'unité légale', 'SIRET', 'Code postal de l\'établissement', 'Commune de l\'établissement']
 
 export default function Home() {
   const [companies, setCompanies] = useState<any[]>([])
@@ -62,6 +59,7 @@ export default function Home() {
   const [searchExpanded, setSearchExpanded] = useState(false)
   const isSigningIn = useRef(false)
   const profileLoaded = useRef(false)
+  const hasExplicitHiddenPrefs = useRef(false)
   const searchAbort = useRef<AbortController | null>(null)
   const [prefsSaved, setPrefsSaved] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
@@ -92,11 +90,11 @@ export default function Home() {
 
   const [columns, setColumns] = useState<string[]>([])
   const [displayColumns, setDisplayColumns] = useState<string[]>([])
-  const [hiddenFields, setHiddenFields] = useState<string[]>([...DEFAULT_HIDDEN_FIELDS])
+  const [hiddenFields, setHiddenFields] = useState<string[]>([])
   const [listColumns, setListColumns] = useState<string[]>(DEFAULT_LIST_COLS)
   const [popupColumns, setPopupColumns] = useState<string[]>(DEFAULT_POPUP_COLS)
 
-  const [fieldsModalTab, setFieldsModalTab] = useState<'list' | 'popup' | null>(null)
+  const [fieldsModalTab, setFieldsModalTab] = useState<'global' | 'list' | 'popup' | null>(null)
 
   const [sortCriteria, setSortCriteria] = useState<{ column: string; dir: 'asc' | 'desc' }[]>([])
   const [filters, setFilters] = useState<{ column: string; operator: 'contains' | 'equals' | 'empty'; negate: boolean; value: string; joinOr?: boolean }[]>([])
@@ -254,9 +252,12 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       profileLoaded.current = false
+      hasExplicitHiddenPrefs.current = false
       setDefaultPresets([...DEFAULT_PRE_QUERY_PRESETS])
       setPreQueryPresets([...DEFAULT_PRE_QUERY_PRESETS])
-      setHiddenFields([...DEFAULT_HIDDEN_FIELDS])
+      setHiddenFields(getDefaultHiddenFields(columns))
+      setListColumns(getDefaultListColumns(columns))
+      setPopupColumns(getDefaultPopupColumns(columns))
       setBootSteps((s) => ({ ...s, preferences: true }))
       return
     }
@@ -265,10 +266,13 @@ export default function Home() {
       const cached = localStorage.getItem(key)
       if (cached) {
         const p = JSON.parse(cached)
-        const resolvedHidden = Array.isArray(p.hiddenFields) ? p.hiddenFields : [...DEFAULT_HIDDEN_FIELDS]
+        hasExplicitHiddenPrefs.current = Array.isArray(p.hiddenFields) && p.hiddenFields.length > 0
+        const resolvedHidden = Array.isArray(p.hiddenFields) && p.hiddenFields.length > 0 ? p.hiddenFields : getDefaultHiddenFields(columns)
         setHiddenFields(resolvedHidden)
         if (Array.isArray(p.listColumns) && p.listColumns.length > 0) setListColumns(p.listColumns)
+        else setListColumns(getDefaultListColumns(columns))
         if (Array.isArray(p.popupColumns) && p.popupColumns.length > 0) setPopupColumns(p.popupColumns)
+        else setPopupColumns(getDefaultPopupColumns(columns))
         if (p.mapStyle) setMapStyle(p.mapStyle)
         if (p.themeMode) setThemeMode(p.themeMode)
         else if (typeof p.isDark === 'boolean') setThemeMode(p.isDark ? 'dark' : 'light')
@@ -287,10 +291,13 @@ export default function Home() {
       .then((snap) => {
         if (snap.exists()) {
           const p = snap.data()
-          const resolvedHidden = Array.isArray(p.hiddenFields) ? p.hiddenFields : [...DEFAULT_HIDDEN_FIELDS]
+          hasExplicitHiddenPrefs.current = Array.isArray(p.hiddenFields) && p.hiddenFields.length > 0
+          const resolvedHidden = Array.isArray(p.hiddenFields) && p.hiddenFields.length > 0 ? p.hiddenFields : getDefaultHiddenFields(columns)
           setHiddenFields(resolvedHidden)
           if (Array.isArray(p.listColumns) && p.listColumns.length > 0) setListColumns(p.listColumns)
+          else setListColumns(getDefaultListColumns(columns))
           if (Array.isArray(p.popupColumns) && p.popupColumns.length > 0) setPopupColumns(p.popupColumns)
+          else setPopupColumns(getDefaultPopupColumns(columns))
           if (p.mapStyle) setMapStyle(p.mapStyle)
           if (p.themeMode) setThemeMode(p.themeMode)
           else if (typeof p.isDark === 'boolean') setThemeMode(p.isDark ? 'dark' : 'light')
@@ -313,7 +320,7 @@ export default function Home() {
         profileLoaded.current = true
         setBootSteps((s) => ({ ...s, preferences: true }))
       })
-  }, [user])
+  }, [user, columns])
 
   /**
    * Persist preferences: writes to localStorage immediately for zero-latency,
@@ -336,7 +343,24 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => {
         if (data.columns) {
-          setColumns(data.columns)
+          const nextColumns: string[] = data.columns
+          setColumns(nextColumns)
+          const defaultHidden = getDefaultHiddenFields(nextColumns)
+          setHiddenFields((prev) => {
+            const filtered = prev.filter((c) => nextColumns.includes(c))
+            if (profileLoaded.current && hasExplicitHiddenPrefs.current) return filtered
+            return defaultHidden
+          })
+          setListColumns((prev) => {
+            const filtered = prev.filter((c) => nextColumns.includes(c))
+            if (profileLoaded.current) return filtered
+            return filtered.length > 0 ? filtered : getDefaultListColumns(nextColumns)
+          })
+          setPopupColumns((prev) => {
+            const filtered = prev.filter((c) => nextColumns.includes(c))
+            if (profileLoaded.current) return filtered
+            return filtered.length > 0 ? filtered : getDefaultPopupColumns(nextColumns)
+          })
         }
       })
       .catch(console.error)
@@ -621,7 +645,9 @@ export default function Home() {
     setPreQueryFilters([])
     setPreQueryCustomIds([])
     setPreQueryOrgIds([])
-    setHiddenFields([...DEFAULT_HIDDEN_FIELDS])
+    setHiddenFields(getDefaultHiddenFields(columns))
+    setListColumns(getDefaultListColumns(columns))
+    setPopupColumns(getDefaultPopupColumns(columns))
     await signOut(auth)
     setUserTier('free')
     setDiscountInfo(null)
@@ -667,7 +693,9 @@ export default function Home() {
       setPreQueryFilters([])
       setPreQueryCustomIds([])
       setPreQueryOrgIds([])
-      setHiddenFields([...DEFAULT_HIDDEN_FIELDS])
+      setHiddenFields(getDefaultHiddenFields(columns))
+      setListColumns(getDefaultListColumns(columns))
+      setPopupColumns(getDefaultPopupColumns(columns))
       await signOut(auth)
     } catch {}
   }, [user, clearLocalDataPreservingQuotas])
@@ -1437,9 +1465,9 @@ export default function Home() {
                             disabled={locked}
                             onClick={() => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, joinOr: !x.joinOr } : x))}
                             className={`text-[9px] font-bold tracking-wide rounded px-1.5 py-px border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                              f.joinOr
-                                ? isDark ? 'text-violet-400 border-violet-500/40 bg-violet-500/10' : 'text-violet-600 border-violet-400/50 bg-violet-50'
-                                : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
+                              isDark
+                                ? 'text-violet-300 border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20'
+                                : 'text-violet-700 border-violet-400/60 bg-violet-50 hover:bg-violet-100'
                             }`}
                             data-tooltip={f.joinOr ? 'OR — match either condition' : 'AND — match both conditions'}
                           >
@@ -1697,6 +1725,7 @@ export default function Home() {
         setThemeMode={setThemeMode}
         mapStyle={mapStyle}
         setMapStyle={setMapStyle}
+        globalVisibleCount={displayColumns.length}
         listColumns={listColumns}
         popupColumns={popupColumns}
         onFieldsModal={setFieldsModalTab}
@@ -1733,7 +1762,6 @@ export default function Home() {
         onCustomResultLimitChange={setCustomResultLimit}
         defaultPresets={defaultPresets}
         onDefaultPresetsChange={setDefaultPresets}
-        hiddenFields={hiddenFields}
         orgId={orgId}
         orgRole={orgRole}
         orgName={orgName}
@@ -1848,11 +1876,13 @@ export default function Home() {
 
     {fieldsModalTab && (
         <ColumnConfig
-          columns={displayColumns}
+          columns={columns}
           listColumns={listColumns}
           popupColumns={popupColumns}
+          hiddenFields={hiddenFields}
           onListColumnsChange={setListColumns}
           onPopupColumnsChange={setPopupColumns}
+          onHiddenFieldsChange={setHiddenFields}
           isDark={isDark}
           initialTab={fieldsModalTab}
           onClose={() => setFieldsModalTab(null)}

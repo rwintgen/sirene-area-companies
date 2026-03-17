@@ -789,9 +789,9 @@ function CompanyList({
                   <button
                     onClick={() => updateFilter(i, { joinOr: !f.joinOr })}
                     className={`text-[9px] font-bold tracking-wide rounded px-1.5 py-px border transition-colors ${
-                      f.joinOr
-                        ? isDark ? 'text-violet-400 border-violet-500/40 bg-violet-500/10' : 'text-violet-600 border-violet-400/50 bg-violet-50'
-                        : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
+                      isDark
+                        ? 'text-violet-300 border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20'
+                        : 'text-violet-700 border-violet-400/60 bg-violet-50 hover:bg-violet-100'
                     }`}
                     data-tooltip={f.joinOr ? 'OR — match either condition' : 'AND — match both conditions'}
                   >

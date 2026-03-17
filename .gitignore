@@ -19,7 +19,7 @@ out/
 node_modules/
 
 # Data
-data/StockEtablissement_utf8.csv
+data/
 
 # Build
 tsconfig.tsbuildinfo

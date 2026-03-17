@@ -40,7 +40,7 @@ export function Modal({ isDark, onClose, zIndex, children, className = '' }: {
       } ${visible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
     >
-      <div className={`w-full md:w-auto rounded-t-2xl md:rounded-2xl border shadow-2xl transition-all duration-200 ${
+      <div className={`rounded-t-2xl md:rounded-2xl border shadow-2xl transition-all duration-200 ${
         visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 md:scale-95 translate-y-4 md:translate-y-0'
       } ${className}`}>
         {children(handleClose)}

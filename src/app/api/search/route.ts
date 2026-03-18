@@ -66,49 +66,52 @@ async function enforceAndIncrementSearchCount(token: string): Promise<number> {
  * Queries the PostGIS `establishments` table for all rows whose `geom`
  * falls within the given GeoJSON geometry (polygon/rectangle).
  * Column names are lazily cached from the first result's JSONB `fields` keys.
+ *
+ * Performance notes:
+ * - Preset filters use promoted real columns (not JSONB extraction) for index usage.
+ * - A COUNT(*) is streamed first so the client gets an instant total before rows arrive.
+ * - Batch size is 5000 to minimize SSE round-trips.
+ * - When the client sends `visibleFields`, only those keys are projected from JSONB.
  */
 const RESULT_LIMIT = MAX_ENTERPRISE_RESULT_LIMIT
 
 /**
- * SQL fragment that extracts the numeric NAF division (first 2 chars of APE code) as an integer.
- * Returns NULL when the field is absent or non-numeric, so it safely falls out of any range check.
+ * SQL fragment for NAF division from the promoted `naf_division` column.
  */
-const NAF_DIV = `CASE WHEN (fields->>'Activité principale de l''établissement') ~ '^\\d{2}' THEN CAST(SUBSTRING(fields->>'Activité principale de l''établissement', 1, 2) AS INTEGER) END`
+const NAF_DIV = `naf_division`
 
 /**
  * Maps each built-in quick filter ID to a parameterless SQL WHERE fragment.
- * All field names and values are hardcoded — no user input is interpolated.
- * Filter IDs are validated before lookup, so only known entries are ever used.
+ * Uses promoted columns instead of JSONB extraction for index-backed performance.
  */
 const PRESET_SQL: Record<string, string> = {
-  active:       `fields->>'Etat administratif de l''établissement' = 'Actif' AND fields->>'Etat administratif de l''unité légale' = 'Active' AND (fields->>'Date de fermeture de l''établissement' IS NULL OR fields->>'Date de fermeture de l''établissement' = '') AND (fields->>'Date de fermeture de l''unité légale' IS NULL OR fields->>'Date de fermeture de l''unité légale' = '')`,
-  closed:       `(fields->>'Etat administratif de l''établissement' = 'Fermé' OR (fields->>'Date de fermeture de l''établissement' IS NOT NULL AND fields->>'Date de fermeture de l''établissement' != ''))`,
-  hq:           `fields->>'Etablissement siège' = 'oui'`,
-  diffusible:   `fields->>'Statut de diffusion de l''établissement' = 'O'`,
-  company:      `(fields->>'Catégorie juridique de l''unité légale' IS NOT NULL AND fields->>'Catégorie juridique de l''unité légale' != '' AND fields->>'Catégorie juridique de l''unité légale' NOT LIKE '1%')`,
-  freelance:    `fields->>'Catégorie juridique de l''unité légale' = '1000'`,
-  sas:          `(fields->>'Catégorie juridique de l''unité légale' = '5710' OR fields->>'Catégorie juridique de l''unité légale' = '5720')`,
-  sarl:         `(fields->>'Catégorie juridique de l''unité légale' = '5499' OR fields->>'Catégorie juridique de l''unité légale' = '5498')`,
-  association:  `(fields->>'Catégorie juridique de l''unité légale' LIKE '92%' OR (fields->>'Identifiant association de l''unité légale' IS NOT NULL AND fields->>'Identifiant association de l''unité légale' != ''))`,
-  employer:     `fields->>'Caractère employeur de l''établissement' = 'Oui'`,
-  pme:          `fields->>'Catégorie de l''entreprise' = 'PME'`,
-  'eti-ge':     `(fields->>'Catégorie de l''entreprise' = 'ETI' OR fields->>'Catégorie de l''entreprise' = 'GE')`,
-  '50plus':     `CAST(NULLIF(fields->>'Tranche de l''effectif de l''établissement triable', '') AS INTEGER) >= 21`,
-  ess:          `fields->>'Economie sociale et solidaire unité légale' = 'O'`,
-  mission:      `fields->>'Société à mission unité légale' = 'O'`,
-  // Sector quick filters — NAF Rev2 division ranges (see nafSection() in presets.ts)
-  agriculture:  `(${NAF_DIV}) BETWEEN 1 AND 3`,
-  industry:     `(${NAF_DIV}) BETWEEN 10 AND 33`,
-  construction: `(${NAF_DIV}) BETWEEN 40 AND 43`,
-  commerce:     `(${NAF_DIV}) BETWEEN 44 AND 47`,
-  transport:    `(${NAF_DIV}) BETWEEN 48 AND 53`,
-  food:         `(${NAF_DIV}) BETWEEN 54 AND 56`,
-  tech:         `(${NAF_DIV}) BETWEEN 57 AND 63`,
-  finance:      `(${NAF_DIV}) BETWEEN 64 AND 66`,
-  realestate:   `(${NAF_DIV}) = 68`,
-  'pro-services': `((${NAF_DIV}) = 67 OR (${NAF_DIV}) BETWEEN 69 AND 75)`,
-  education:    `(${NAF_DIV}) = 85`,
-  health:       `((${NAF_DIV}) = 83 OR (${NAF_DIV}) BETWEEN 86 AND 88)`,
+  active:       `statut_admin = 'Actif' AND statut_admin_ul = 'Active' AND (date_fermeture IS NULL OR date_fermeture = '') AND (date_fermeture_ul IS NULL OR date_fermeture_ul = '')`,
+  closed:       `(statut_admin = 'Fermé' OR (date_fermeture IS NOT NULL AND date_fermeture != ''))`,
+  hq:           `est_siege = true`,
+  diffusible:   `diffusible = true`,
+  company:      `(legal_form IS NOT NULL AND legal_form != '' AND legal_form NOT LIKE '1%')`,
+  freelance:    `legal_form = '1000'`,
+  sas:          `(legal_form = '5710' OR legal_form = '5720')`,
+  sarl:         `(legal_form = '5499' OR legal_form = '5498')`,
+  association:  `(legal_form LIKE '92%' OR (assoc_id IS NOT NULL AND assoc_id != ''))`,
+  employer:     `employeur = 'Oui'`,
+  pme:          `categorie_ent = 'PME'`,
+  'eti-ge':     `(categorie_ent = 'ETI' OR categorie_ent = 'GE')`,
+  '50plus':     `tranche_eff_sort >= 21`,
+  ess:          `ess = 'O'`,
+  mission:      `mission = 'O'`,
+  agriculture:  `${NAF_DIV} BETWEEN 1 AND 3`,
+  industry:     `${NAF_DIV} BETWEEN 10 AND 33`,
+  construction: `${NAF_DIV} BETWEEN 40 AND 43`,
+  commerce:     `${NAF_DIV} BETWEEN 44 AND 47`,
+  transport:    `${NAF_DIV} BETWEEN 48 AND 53`,
+  food:         `${NAF_DIV} BETWEEN 54 AND 56`,
+  tech:         `${NAF_DIV} BETWEEN 57 AND 63`,
+  finance:      `${NAF_DIV} BETWEEN 64 AND 66`,
+  realestate:   `${NAF_DIV} = 68`,
+  'pro-services': `(${NAF_DIV} = 67 OR ${NAF_DIV} BETWEEN 69 AND 75)`,
+  education:    `${NAF_DIV} = 85`,
+  health:       `(${NAF_DIV} = 83 OR ${NAF_DIV} BETWEEN 86 AND 88)`,
 }
 
 const PRESET_GROUP: Record<string, string> = {
@@ -246,7 +249,7 @@ export async function GET() {
 /** POST: accepts a GeoJSON geometry and an optional result limit, returns companies within that area. Streams results as SSE. */
 export async function POST(req: NextRequest) {
   try {
-    const { geometry, limit: requestedLimit, presets: rawPresets, filters: rawFilters, connectorId, connectorOrgId } = await req.json()
+    const { geometry, limit: requestedLimit, presets: rawPresets, filters: rawFilters, connectorId, connectorOrgId, visibleFields: rawVisibleFields } = await req.json()
     const limit = typeof requestedLimit === 'number' && requestedLimit > 0
       ? Math.min(requestedLimit, RESULT_LIMIT)
       : RESULT_LIMIT
@@ -255,6 +258,9 @@ export async function POST(req: NextRequest) {
       : []
     const isConnectorRequest = typeof connectorId === 'string' && typeof connectorOrgId === 'string'
     const filters = validateFilters(rawFilters, isConnectorRequest ? null : dbColumnsCache)
+    const visibleFields: string[] | null = Array.isArray(rawVisibleFields) && rawVisibleFields.length > 0
+      ? rawVisibleFields.filter((f: unknown) => typeof f === 'string' && f.length > 0 && f.length < 200).slice(0, 120)
+      : null
 
     if (!geometry) return NextResponse.json({ companies: [] })
     if (!geometry.coordinates || !Array.isArray(geometry.coordinates)) {
@@ -300,6 +306,19 @@ export async function POST(req: NextRequest) {
     const sseSend = (data: any) => encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
     const sseHeaders = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' }
 
+    /**
+     * When the client sends visibleFields, project only those keys from JSONB
+     * to dramatically reduce payload size (e.g. 10 fields vs 104).
+     */
+    const projectFields = (row: any): { lat: number; lon: number; fields: Record<string, string> } => {
+      if (!visibleFields) return { lat: row.lat, lon: row.lon, fields: row.fields }
+      const projected: Record<string, string> = {}
+      for (const key of visibleFields) {
+        if (key in row.fields) projected[key] = row.fields[key]
+      }
+      return { lat: row.lat, lon: row.lon, fields: projected }
+    }
+
     const pool = await getPool()
     const client = await pool.connect()
 
@@ -322,7 +341,7 @@ export async function POST(req: NextRequest) {
               [connectorMeta.id, geoJson, effectiveLimit, ...filterParams]
             )
 
-            const BATCH_SIZE = 100
+            const BATCH_SIZE = 5000
             let loaded = 0
             let detectedColumns: string[] | null = null
 
@@ -337,7 +356,7 @@ export async function POST(req: NextRequest) {
               try {
                 controller.enqueue(sseSend({
                   type: 'batch',
-                  companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+                  companies: batch.rows.map(projectFields),
                   loaded,
                 }))
               } catch { break }
@@ -360,16 +379,26 @@ export async function POST(req: NextRequest) {
             const wherePresets = presetClauses.length > 0 ? ` AND ${presetClauses.join(' AND ')}` : ''
             const { clauses: filterClauses, params: filterParams } = buildFilterSQL(filters, 3)
             const whereFilters = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : ''
+            const whereFull = `WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters}`
 
-            controller.enqueue(sseSend({ type: 'start', total: effectiveLimit }))
+            // Instant count: run a fast COUNT(*) first so the client knows the real total
+            const countResult = await client.query(
+              `SELECT COUNT(*) AS cnt FROM establishments ${whereFull}`,
+              [geoJson, ...filterParams]
+            )
+            const totalMatching = parseInt(countResult.rows[0].cnt, 10)
+            controller.enqueue(sseSend({ type: 'count', total: totalMatching }))
+
+            const streamLimit = Math.min(effectiveLimit, totalMatching)
+            controller.enqueue(sseSend({ type: 'start', total: streamLimit }))
 
             await client.query('BEGIN')
             await client.query(
-              `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments WHERE ST_Contains(ST_GeomFromGeoJSON($1), geom)${wherePresets}${whereFilters} LIMIT $2`,
+              `DECLARE search_cursor NO SCROLL CURSOR FOR SELECT lat, lon, fields FROM establishments ${whereFull} LIMIT $2`,
               [geoJson, effectiveLimit, ...filterParams]
             )
 
-            const BATCH_SIZE = 100
+            const BATCH_SIZE = 5000
             let loaded = 0
 
             while (loaded < effectiveLimit) {
@@ -385,19 +414,20 @@ export async function POST(req: NextRequest) {
               try {
                 controller.enqueue(sseSend({
                   type: 'batch',
-                  companies: batch.rows.map((r: any) => ({ lat: r.lat, lon: r.lon, fields: r.fields })),
+                  companies: batch.rows.map(projectFields),
                   loaded,
                 }))
               } catch { break }
             }
 
-            const truncated = loaded >= effectiveLimit
-            console.log(`[postgis-stream] Streamed ${loaded} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (quick-filters: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
+            const truncated = loaded >= effectiveLimit && totalMatching > effectiveLimit
+            console.log(`[postgis-stream] Streamed ${loaded}/${totalMatching} establishments${truncated ? ' (truncated)' : ''}${presets.length ? ` (quick-filters: ${presets.join(',')})` : ''}${filters.length ? ` (filters: ${filters.length})` : ''} (limit: ${effectiveLimit}).`)
 
             controller.enqueue(sseSend({
               type: 'complete',
               columns: dbColumnsCache ?? [],
               truncated,
+              totalMatching,
               resultLimit: effectiveLimit,
               searchCountAfter,
               activePresets: presets,

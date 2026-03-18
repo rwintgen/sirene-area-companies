@@ -73,6 +73,15 @@ async function run() {
   await client.query('DROP INDEX IF EXISTS idx_establishments_fields')
   await client.query('ALTER TABLE establishments DROP CONSTRAINT IF EXISTS establishments_siret_key')
   await client.query('DROP INDEX IF EXISTS idx_establishments_siret')
+  await client.query('DROP INDEX IF EXISTS idx_est_statut_admin')
+  await client.query('DROP INDEX IF EXISTS idx_est_ape_code')
+  await client.query('DROP INDEX IF EXISTS idx_est_naf_div')
+  await client.query('DROP INDEX IF EXISTS idx_est_legal_form')
+  await client.query('DROP INDEX IF EXISTS idx_est_categorie')
+  await client.query('DROP INDEX IF EXISTS idx_est_employeur')
+  await client.query('DROP INDEX IF EXISTS idx_geom_active')
+  await client.query('DROP INDEX IF EXISTS idx_geom_active_siege')
+  await client.query('DROP INDEX IF EXISTS idx_geom_diffusible')
   console.log('All indexes/constraints dropped.')
 
   const csvParser = fs.createReadStream(CSV_PATH, { start: fromByte })
@@ -91,20 +100,62 @@ async function run() {
   let lastBytes = 0
   const startTime = Date.now()
 
+  /**
+   * Extracts promoted column values from a JSONB fields object.
+   * These mirror the dedicated columns in setup-db.sql for indexed filtering.
+   */
+  function extractPromoted(fields) {
+    const ape = fields["Activit\u00e9 principale de l'\u00e9tablissement"] ?? ''
+    const nafMatch = ape.match(/^(\d{2})/)
+    return {
+      statut_admin:     fields["Etat administratif de l'\u00e9tablissement"] ?? '',
+      statut_admin_ul:  fields["Etat administratif de l'unit\u00e9 l\u00e9gale"] ?? '',
+      date_fermeture:   fields["Date de fermeture de l'\u00e9tablissement"] ?? '',
+      date_fermeture_ul: fields["Date de fermeture de l'unit\u00e9 l\u00e9gale"] ?? '',
+      est_siege:        (fields["Etablissement si\u00e8ge"] ?? '').toLowerCase() === 'oui',
+      diffusible:       (fields["Statut de diffusion de l'\u00e9tablissement"] ?? '') === 'O',
+      ape_code:         ape,
+      naf_division:     nafMatch ? parseInt(nafMatch[1], 10) : null,
+      legal_form:       fields["Cat\u00e9gorie juridique de l'unit\u00e9 l\u00e9gale"] ?? '',
+      assoc_id:         fields["Identifiant association de l'unit\u00e9 l\u00e9gale"] ?? '',
+      categorie_ent:    fields["Cat\u00e9gorie de l'entreprise"] ?? '',
+      employeur:        fields["Caract\u00e8re employeur de l'\u00e9tablissement"] ?? '',
+      tranche_eff_sort: parseInt(fields["Tranche de l'effectif de l'\u00e9tablissement triable"] ?? '', 10) || null,
+      ess:              fields["Economie sociale et solidaire unit\u00e9 l\u00e9gale"] ?? '',
+      mission:          fields["Soci\u00e9t\u00e9 \u00e0 mission unit\u00e9 l\u00e9gale"] ?? '',
+    }
+  }
+
   async function flushBatch() {
     if (batch.length === 0) return
 
     let payload = ''
     for (const r of batch) {
+      const p = r.promoted
       payload += copyEscape(r.siret) + '\t'
         + r.lat + '\t'
         + r.lon + '\t'
-        + copyEscape(JSON.stringify(r.fields)) + '\n'
+        + copyEscape(JSON.stringify(r.fields)) + '\t'
+        + copyEscape(p.statut_admin) + '\t'
+        + copyEscape(p.statut_admin_ul) + '\t'
+        + copyEscape(p.date_fermeture) + '\t'
+        + copyEscape(p.date_fermeture_ul) + '\t'
+        + (p.est_siege ? 't' : 'f') + '\t'
+        + (p.diffusible ? 't' : 'f') + '\t'
+        + copyEscape(p.ape_code) + '\t'
+        + (p.naf_division !== null ? p.naf_division : '\\N') + '\t'
+        + copyEscape(p.legal_form) + '\t'
+        + copyEscape(p.assoc_id) + '\t'
+        + copyEscape(p.categorie_ent) + '\t'
+        + copyEscape(p.employeur) + '\t'
+        + (p.tranche_eff_sort !== null ? p.tranche_eff_sort : '\\N') + '\t'
+        + copyEscape(p.ess) + '\t'
+        + copyEscape(p.mission) + '\n'
     }
 
     await new Promise((resolve, reject) => {
       const stream = client.query(copyFrom(
-        'COPY establishments (siret, lat, lon, fields) FROM STDIN'
+        'COPY establishments (siret, lat, lon, fields, statut_admin, statut_admin_ul, date_fermeture, date_fermeture_ul, est_siege, diffusible, ape_code, naf_division, legal_form, assoc_id, categorie_ent, employeur, tranche_eff_sort, ess, mission) FROM STDIN'
       ))
       stream.on('error', reject)
       stream.on('finish', resolve)
@@ -137,7 +188,7 @@ async function run() {
     const fields = { ...row }
     delete fields[GEO_COL]
 
-    batch.push({ siret: row.SIRET ?? '', lat, lon, fields })
+    batch.push({ siret: row.SIRET ?? '', lat, lon, fields, promoted: extractPromoted(fields) })
 
     if (batch.length >= BATCH_SIZE) {
       await flushBatch()
@@ -165,6 +216,17 @@ async function run() {
   await client.query('CREATE INDEX IF NOT EXISTS idx_establishments_siret ON establishments (siret)')
   await client.query('CREATE INDEX IF NOT EXISTS idx_establishments_geom ON establishments USING GIST (geom)')
   await client.query('CREATE INDEX IF NOT EXISTS idx_establishments_fields ON establishments USING GIN (fields jsonb_path_ops)')
+  console.log('Core indexes created. Building promoted column indexes...')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_statut_admin ON establishments (statut_admin)')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_ape_code     ON establishments (ape_code)')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_naf_div      ON establishments (naf_division)')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_legal_form   ON establishments (legal_form)')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_categorie    ON establishments (categorie_ent)')
+  await client.query('CREATE INDEX IF NOT EXISTS idx_est_employeur    ON establishments (employeur)')
+  console.log('Building partial spatial indexes...')
+  await client.query("CREATE INDEX IF NOT EXISTS idx_geom_active       ON establishments USING GIST (geom) WHERE statut_admin = 'Actif'")
+  await client.query("CREATE INDEX IF NOT EXISTS idx_geom_active_siege ON establishments USING GIST (geom) WHERE statut_admin = 'Actif' AND est_siege = true")
+  await client.query("CREATE INDEX IF NOT EXISTS idx_geom_diffusible   ON establishments USING GIST (geom) WHERE diffusible = true")
   console.log('All indexes and constraints created.')
 
   if (fs.existsSync(CHECKPOINT_FILE)) fs.unlinkSync(CHECKPOINT_FILE)

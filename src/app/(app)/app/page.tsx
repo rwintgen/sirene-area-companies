@@ -45,6 +45,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [isTruncated, setIsTruncated] = useState(false)
   const [resultLimit, setResultLimit] = useState<number | null>(null)
+  const [totalMatching, setTotalMatching] = useState<number | null>(null)
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>('system')
   const [systemDark, setSystemDark] = useState(true)
   const [mapStyle, setMapStyle] = useState<'default' | 'themed' | 'satellite'>('themed')
@@ -393,6 +394,7 @@ export default function Home() {
       setActiveSearchId(null)
       setIsTruncated(false)
       setResultLimit(null)
+      setTotalMatching(null)
       setIsLoading(false)
       setSearchProgress(null)
       return
@@ -440,6 +442,10 @@ export default function Home() {
         searchBody.connectorId = connectorSource
         searchBody.connectorOrgId = orgId
       }
+      const allVisible = Array.from(new Set([...displayColumns, ...listColumns, ...popupColumns]))
+      if (allVisible.length > 0 && allVisible.length < 104) {
+        searchBody.visibleFields = allVisible
+      }
       const response = await fetch('/api/search', {
         method: 'POST',
         headers,
@@ -478,6 +484,9 @@ export default function Home() {
           try {
             const evt = JSON.parse(line.slice(6))
             switch (evt.type) {
+              case 'count':
+                meta.totalMatching = evt.total
+                break
               case 'start':
                 setSearchProgress({ loaded: 0, total: evt.total })
                 searchTotal.current = evt.total
@@ -524,6 +533,7 @@ export default function Home() {
       setActiveSearchId(null)
       if (typeof meta.truncated === 'boolean') setIsTruncated(meta.truncated)
       if (typeof meta.resultLimit === 'number') setResultLimit(meta.resultLimit)
+      setTotalMatching(typeof meta.totalMatching === 'number' ? meta.totalMatching : null)
       if (meta.columns) {
         setColumns(meta.columns)
       }
@@ -1051,7 +1061,7 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-[11px] font-medium">
-              Showing first {resultLimit.toLocaleString()} results — {userTier === 'enterprise' || userTier === 'individual' ? 'adjust your limit below' : 'zoom in or refine your area'}
+              Showing {resultLimit.toLocaleString()}{totalMatching ? ` of ${totalMatching.toLocaleString()}` : ''} results — {userTier === 'enterprise' || userTier === 'individual' ? 'adjust your limit below' : 'zoom in or refine your area'}
             </span>
           </div>
         )}

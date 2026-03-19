@@ -158,7 +158,7 @@ export default function ExportModal({ companies, displayColumns, isDark, userTie
 
         {/* Format selection */}
         <div className={`px-5 pb-3 border-b ${t.divider}`}>
-          <div className={`text-[10px] font-semibold uppercase tracking-widest mb-2 ${t.sectionLabel}`}>Format</div>
+          <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-2 ${t.sectionLabel}`}>Format</div>
           <div className="flex flex-wrap gap-2">
             {FORMAT_META.map((f) => {
               const locked = f.premium && !isPremium
@@ -190,9 +190,9 @@ export default function ExportModal({ companies, displayColumns, isDark, userTie
         {/* Column selection */}
         <div className="px-5 pt-3 pb-1">
           <div className="flex items-center gap-3 mb-2">
-            <span className={`text-[10px] font-semibold uppercase tracking-widest ${t.sectionLabel}`}>Fields</span>
-            <button onClick={() => setSelectedCols([...displayColumns])} className={`text-[10px] font-medium ${t.allBtn}`}>All</button>
-            <button onClick={() => setSelectedCols([])} className={`text-[10px] font-medium ${t.allBtn}`}>None</button>
+            <span className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest ${t.sectionLabel}`}>Fields</span>
+            <button onClick={() => setSelectedCols([...displayColumns])} className={`text-xs md:text-[10px] font-medium ${t.allBtn}`}>All</button>
+            <button onClick={() => setSelectedCols([])} className={`text-xs md:text-[10px] font-medium ${t.allBtn}`}>None</button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-3 max-h-[300px]">
@@ -205,13 +205,13 @@ export default function ExportModal({ companies, displayColumns, isDark, userTie
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${t.colItem}`}
               >
                 <Checkbox checked={isOn} isDark={isDark} />
-                <span className="text-[11px] truncate">{col}</span>
+                <span className="text-xs md:text-[11px] truncate">{col}</span>
               </button>
             )
           })}
         </div>
 
-        <div className={`text-[10px] px-5 py-1 ${t.subtitle}`}>
+        <div className={`text-xs md:text-[10px] px-5 py-1 ${t.subtitle}`}>
           Coordinates (lat/lon) are always included.
         </div>
 

@@ -10,6 +10,20 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 
 const FRANCE_CENTER: [number, number] = [46.603354, 1.888334]
 const FRANCE_ZOOM = 6
+
+export interface ClusterPoint {
+  lat: number
+  lng: number
+  count: number
+}
+
+export interface ViewportBounds {
+  west: number
+  south: number
+  east: number
+  north: number
+  zoom: number
+}
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
 const defaultIcon = new L.Icon({
@@ -125,7 +139,7 @@ function ClusteredMarkers({
           else html += `<p class="text-xs text-gray-400 mt-0.5">${esc(col)}: ${val}</p>`
         })
       }
-      html += '<button class="marker-expand-btn mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors">View details <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>'
+      html += '<button class="marker-expand-btn mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-2.5 transition-colors">View details <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>'
       html += '</div>'
       m.bindPopup(html)
       return m
@@ -180,7 +194,7 @@ function SelectedMarkerPopup({ selectedCompany, popupColumns, onExpand, onDesele
           )}
                 <button
                   onClick={() => onExpand(selectedCompany)}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-1.5 transition-colors"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg py-2.5 transition-colors"
                 >
                   View details
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
@@ -241,6 +255,111 @@ function MapDeselectHandler({ onCompanySelectRef, recentMarkerClickRef }: {
 }
 
 /**
+ * Fires `onViewportChange` with debounced bbox + zoom whenever the map
+ * is panned or zoomed. Used to feed the /api/clusters endpoint.
+ */
+function ViewportTracker({ onViewportChange }: { onViewportChange: (bounds: ViewportBounds) => void }) {
+  const map = useMap()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cbRef = useRef(onViewportChange)
+  cbRef.current = onViewportChange
+
+  useEffect(() => {
+    console.log('[ViewportTracker] mounted, attaching map listeners')
+    const fire = () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        const b = map.getBounds()
+        const bounds = {
+          west: b.getWest(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          north: b.getNorth(),
+          zoom: map.getZoom(),
+        }
+        console.log('[ViewportTracker] firing onViewportChange', bounds)
+        cbRef.current(bounds)
+      }, 300)
+    }
+    fire()
+    map.on('moveend', fire)
+    map.on('zoomend', fire)
+    return () => {
+      map.off('moveend', fire)
+      map.off('zoomend', fire)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [map])
+
+  return null
+}
+
+function clusterColor(count: number, dark: boolean): string {
+  if (count >= 10000) return dark ? '#c084fc' : '#7c3aed'
+  if (count >= 1000) return dark ? '#a78bfa' : '#8b5cf6'
+  if (count >= 100) return dark ? '#c4b5fd' : '#a78bfa'
+  return dark ? '#ddd6fe' : '#c4b5fd'
+}
+
+function clusterRadius(count: number): number {
+  if (count >= 50000) return 32
+  if (count >= 10000) return 26
+  if (count >= 1000) return 22
+  if (count >= 100) return 18
+  if (count >= 10) return 14
+  return 10
+}
+
+/**
+ * Renders server-side clusters as lightweight circle markers with count labels.
+ * Completely bypasses React reconciliation for performance — uses native Leaflet.
+ */
+function ViewportClusterLayer({ clusters, isDark }: { clusters: ClusterPoint[]; isDark: boolean }) {
+  const map = useMap()
+  const layerRef = useRef<L.LayerGroup | null>(null)
+
+  useEffect(() => {
+    const g = L.layerGroup()
+    layerRef.current = g
+    map.addLayer(g)
+    return () => { map.removeLayer(g) }
+  }, [map])
+
+  useEffect(() => {
+    const g = layerRef.current
+    if (!g) return
+    g.clearLayers()
+    console.log(`[ViewportClusterLayer] rendering ${clusters.length} clusters`)
+    for (const c of clusters) {
+      if (c.count === 1) {
+        L.circleMarker([c.lat, c.lng], {
+          radius: 4,
+          fillColor: isDark ? '#a78bfa' : '#7c3aed',
+          fillOpacity: 0.8,
+          stroke: false,
+        }).addTo(g)
+      } else {
+        const r = clusterRadius(c.count)
+        const color = clusterColor(c.count, isDark)
+        const display = c.count >= 1000 ? Math.round(c.count / 1000) + 'k' : String(c.count)
+        const fontSize = c.count >= 10000 ? 10 : c.count >= 100 ? 11 : 12
+        L.marker([c.lat, c.lng], {
+          icon: L.divIcon({
+            html: `<div style="width:${r * 2}px;height:${r * 2}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-size:${fontSize}px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.3);">${display}</div>`,
+            className: '',
+            iconSize: L.point(r * 2, r * 2),
+            iconAnchor: L.point(r, r),
+          }),
+          interactive: false,
+        }).addTo(g)
+      }
+    }
+  }, [clusters, isDark])
+
+  return null
+}
+
+/**
  * Main Leaflet map with polygon/rectangle draw tools.
  * Renders company markers, handles draw-create/edit/delete events,
  * and supports restoring saved search geometries.
@@ -259,6 +378,8 @@ export default function Map({
   restoreGeometry,
   sidebarOpen,
   onToggleSidebar,
+  clusters,
+  onViewportChange,
 }: {
   companies: any[]
   selectedCompany: any
@@ -273,6 +394,8 @@ export default function Map({
   restoreGeometry: { geometry: any; ts: number } | null
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  clusters?: ClusterPoint[]
+  onViewportChange?: (bounds: ViewportBounds) => void
 }) {
   const featureGroupRef = useRef<L.FeatureGroup | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
@@ -421,6 +544,8 @@ export default function Map({
           edit={editConfig}
         />
       </FeatureGroup>
+      {clusters && clusters.length > 0 && <ViewportClusterLayer clusters={clusters} isDark={isDark} />}
+      {onViewportChange ? <ViewportTracker onViewportChange={onViewportChange} /> : null}
       <ClusteredMarkers companies={companies} onCompanySelect={onCompanySelect} onExpand={onExpand} popupColumns={popupColumns} recentMarkerClickRef={recentMarkerClickRef} />
       <SelectedMarkerPopup selectedCompany={selectedCompany} popupColumns={popupColumns} onExpand={onExpand} onDeselect={handleDeselect} />
       <MapDeselectHandler onCompanySelectRef={onCompanySelectRef} recentMarkerClickRef={recentMarkerClickRef} />

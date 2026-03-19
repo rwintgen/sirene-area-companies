@@ -328,7 +328,7 @@ function CompanyList({
                   setTimeout(() => saveInputRef.current?.focus(), 50)
                 }
               }}
-              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all ${isSaving ? t.toolbarActive : t.toolbarBtn}`}
+              className={`w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center border transition-all ${isSaving ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Save search" data-tooltip-pos="left"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +341,7 @@ function CompanyList({
           <div className="relative">
             <button
               onClick={() => setShowSort(!showSort)}
-              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showSort ? t.toolbarActive : t.toolbarBtn}`}
+              className={`w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showSort ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Sort results" data-tooltip-pos="left"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,13 +349,13 @@ function CompanyList({
               </svg>
             </button>
             {!showSort && sortCriteria.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{sortCriteria.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[11px] md:text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{sortCriteria.length}</span>
             )}
           </div>
           <div className="relative">
             <button
               onClick={() => setShowPresets(!showPresets)}
-              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets ? t.toolbarActive : t.toolbarBtn}`}
+              className={`w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showPresets ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Quick filters" data-tooltip-pos="left"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -363,13 +363,13 @@ function CompanyList({
               </svg>
             </button>
             {!showPresets && activePresets.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{activePresets.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[11px] md:text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{activePresets.length}</span>
             )}
           </div>
           <div className="relative">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`w-7 h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showFilters ? t.toolbarActive : t.toolbarBtn}`}
+              className={`w-9 h-9 md:w-7 md:h-7 rounded-md flex items-center justify-center border transition-all text-xs ${showFilters ? t.toolbarActive : t.toolbarBtn}`}
               data-tooltip="Filter results" data-tooltip-pos="left"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -377,17 +377,17 @@ function CompanyList({
               </svg>
             </button>
             {!showFilters && filters.length > 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{filters.length}</span>
+              <span className={`absolute -top-1.5 -right-1.5 z-10 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[11px] md:text-[9px] font-bold px-1 ${isDark ? 'bg-white text-gray-900' : 'bg-violet-600 text-white'}`}>{filters.length}</span>
             )}
           </div>
         </div>
       </div>
 
       {saveNotice && (
-        <div className={`flex items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-medium animate-save-notice ${isDark ? 'bg-white/5 text-gray-300' : 'bg-violet-50 text-violet-700'}`}>
+        <div className={`flex items-center gap-1.5 px-2.5 rounded-lg text-xs md:text-[11px] font-medium animate-save-notice ${isDark ? 'bg-white/5 text-gray-300' : 'bg-violet-50 text-violet-700'}`}>
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span>Sign in to save searches</span>
-          <button onClick={onSignInPrompt} className={`ml-auto text-[11px] font-semibold underline transition-colors ${isDark ? 'text-gray-200 hover:text-white' : 'text-violet-600 hover:text-violet-800'}`}>Sign in</button>
+          <button onClick={onSignInPrompt} className={`ml-auto text-xs md:text-[11px] font-semibold underline transition-colors ${isDark ? 'text-gray-200 hover:text-white' : 'text-violet-600 hover:text-violet-800'}`}>Sign in</button>
         </div>
       )}
 
@@ -404,13 +404,13 @@ function CompanyList({
           <button
             onClick={handleSave}
             disabled={!saveName.trim()}
-            className={`text-[11px] font-semibold transition-colors px-1.5 py-0.5 rounded ${saveName.trim() ? (isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400') : isDark ? 'text-gray-600' : 'text-gray-400'}`}
+            className={`text-xs md:text-[11px] font-semibold transition-colors px-2 py-1 md:px-1.5 md:py-0.5 rounded ${saveName.trim() ? (isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400') : isDark ? 'text-gray-600' : 'text-gray-400'}`}
           >
             Save
           </button>
           <button
             onClick={() => { setIsSaving(false); setSaveName('') }}
-            className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`text-xs md:text-[11px] font-medium transition-colors px-2 py-1 md:px-1 md:py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             Cancel
           </button>
@@ -421,7 +421,7 @@ function CompanyList({
         <div className="flex items-start gap-1 mb-2 min-w-0">
           <div className={`flex-1 min-w-0 ${chipsExpanded ? 'flex flex-wrap' : 'overflow-x-auto flex'} items-center gap-1 scrollbar-none`}>
             {sortCriteria.map((sc, i) => (
-              <span key={`sort-${i}`} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+              <span key={`sort-${i}`} className={`inline-flex items-center gap-1 text-xs md:text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
                 <svg className={`w-2.5 h-2.5 ${sc.dir === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
                 {i > 0 && <span className="opacity-50 mr-0.5">#{i + 1}</span>}
                 {sc.column.length > 18 ? sc.column.substring(0, 18) + '…' : sc.column}
@@ -434,7 +434,7 @@ function CompanyList({
               const p = PRESET_FILTERS.find((x) => x.id === id)
               const cp = customPresets.find((x) => x.id === id)
               if (p) return (
-                <span key={id} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+                <span key={id} className={`inline-flex items-center gap-1 text-xs md:text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
                   {p.label}
                   <button onClick={() => onPresetsChange(activePresets.filter((x) => x !== id))} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
                     <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -442,7 +442,7 @@ function CompanyList({
                 </span>
               )
               if (cp) return (
-                <span key={id} className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.customTagActive}`}>
+                <span key={id} className={`inline-flex items-center gap-1 text-xs md:text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.customTagActive}`}>
                   {cp.label}
                   <button onClick={() => onPresetsChange(activePresets.filter((x) => x !== id))} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
                     <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -454,9 +454,9 @@ function CompanyList({
             {filters.map((f, i) => (
               <span key={`filter-${i}`} className="contents">
                 {i > 0 && (
-                  <span className={`text-[9px] italic flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{f.joinOr ? 'or' : '&'}</span>
+                  <span className={`text-[11px] md:text-[9px] italic flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{f.joinOr ? 'or' : '&'}</span>
                 )}
-                <span className={`inline-flex items-center gap-1 text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
+                <span className={`inline-flex items-center gap-1 text-xs md:text-[10px] font-medium pl-2 pr-1 py-0.5 rounded-full border flex-shrink-0 ${t.presetTagActive}`}>
                   {f.column.length > 12 ? f.column.substring(0, 12) + '…' : f.column} {f.negate ? 'NOT ' : ''}{f.operator}{f.operator !== 'empty' && f.value ? ` "${f.value.length > 8 ? f.value.substring(0, 8) + '…' : f.value}"` : ''}
                   <button onClick={() => removeFilter(i)} className="ml-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black/10">
                     <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -492,7 +492,7 @@ function CompanyList({
         <CardSection isDark={isDark} className="mb-2 space-y-1.5">
           {sortCriteria.map((sc, i) => (
             <div key={i} className="flex items-center gap-1.5 min-w-0">
-              <span className={`flex-shrink-0 text-[10px] uppercase tracking-widest font-semibold w-3 text-center ${t.fieldLabel}`}>{i + 1}</span>
+              <span className={`flex-shrink-0 text-xs md:text-[10px] uppercase tracking-widest font-semibold w-3 text-center ${t.fieldLabel}`}>{i + 1}</span>
               <ColSelect
                 value={sc.column}
                 onChange={(v) => updateSortCriterion(i, { column: v })}
@@ -522,7 +522,7 @@ function CompanyList({
           {sortCriteria.length < 5 && (
             <button
               onClick={addSortCriterion}
-              className={`flex items-center text-[10px] font-medium h-6 ${t.sortIcon}`}
+              className={`flex items-center text-xs md:text-[10px] font-medium h-6 ${t.sortIcon}`}
             >
               + Add sort {sortCriteria.length > 0 ? 'criterion' : ''}
             </button>
@@ -545,7 +545,7 @@ function CompanyList({
                     return (
                       <span key={preset.id} className="contents">
                         {isActive && activeIdx > 0 && (
-                          <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>or</span>
+                          <span className={`text-[11px] md:text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>or</span>
                         )}
                         <PresetPill
                           label={preset.label}
@@ -584,11 +584,11 @@ function CompanyList({
           {orgQuickFilters.length > 0 && (
             <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
               <div className="flex items-center justify-between mb-0.5">
-                <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Organization</div>
+                <div className={`text-[11px] md:text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Organization</div>
                 {(orgRole === 'owner' || orgRole === 'admin') && (
                   <a
                     href="/org#settings"
-                    className={`text-[10px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                    className={`text-xs md:text-[10px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                   >
                     Manage
                   </a>
@@ -626,13 +626,13 @@ function CompanyList({
           {canExportPremium(userTier) && (
             <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
               <div className="flex items-center justify-between mb-0.5">
-                <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Custom</div>
+                <div className={`text-[11px] md:text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Custom</div>
                 <button
                   onClick={() => {
                     setCustomLabelForm(!customLabelForm)
                     if (!customLabelForm && columns.length > 0) setNewLabelColumn(columns[0])
                   }}
-                  className={`text-[10px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`text-xs md:text-[10px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   {customLabelForm ? 'Cancel' : '+ New'}
                 </button>
@@ -668,7 +668,7 @@ function CompanyList({
                             onCustomPresetsChange(customPresets.filter((x) => x.id !== cp.id))
                             onPresetsChange(activePresets.filter((id) => id !== cp.id))
                           }}
-                          className={`opacity-0 group-hover/custom:opacity-100 transition-opacity w-3.5 h-3.5 rounded-full flex items-center justify-center ${t.filterRemove}`}
+                          className={`opacity-100 md:opacity-0 md:group-hover/custom:opacity-100 transition-opacity w-3.5 h-3.5 rounded-full flex items-center justify-center ${t.filterRemove}`}
                         >
                           <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -695,7 +695,7 @@ function CompanyList({
                     />
                     <button
                       onClick={() => setNewLabelNegate(!newLabelNegate)}
-                      className={`flex-shrink-0 text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
+                      className={`flex-shrink-0 text-xs md:text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
                         newLabelNegate
                           ? 'text-orange-400 border-orange-500/50 bg-orange-500/10'
                           : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
@@ -739,7 +739,7 @@ function CompanyList({
                       setNewLabelNegate(false)
                       setCustomLabelForm(false)
                     }}
-                    className={`text-[10px] font-semibold py-1 px-3 rounded-lg transition-all disabled:opacity-40 ${
+                    className={`text-xs md:text-[10px] font-semibold py-1 px-3 rounded-lg transition-all disabled:opacity-40 ${
                       isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -752,7 +752,7 @@ function CompanyList({
           {!canExportPremium(userTier) && (
             <button
               onClick={() => onPaywall('custom labels')}
-              className={`flex items-center gap-1.5 text-[10px] font-medium mt-2 pt-2 border-t border-dashed transition-colors ${
+              className={`flex items-center gap-1.5 text-xs md:text-[10px] font-medium mt-2 pt-2 border-t border-dashed transition-colors ${
                 isDark ? 'text-gray-600 hover:text-gray-400 border-white/5' : 'text-gray-400 hover:text-gray-600 border-gray-200'
               }`}
             >
@@ -787,7 +787,7 @@ function CompanyList({
                 <div className="flex justify-start pl-1 py-0.5">
                   <button
                     onClick={() => updateFilter(i, { joinOr: !f.joinOr })}
-                    className={`text-[9px] font-bold tracking-wide rounded px-1.5 py-px border transition-colors ${
+                    className={`text-[11px] md:text-[9px] font-bold tracking-wide rounded px-1.5 py-px border transition-colors ${
                       isDark
                         ? 'text-violet-300 border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20'
                         : 'text-violet-700 border-violet-400/60 bg-violet-50 hover:bg-violet-100'
@@ -807,7 +807,7 @@ function CompanyList({
                 />
                 <button
                   onClick={() => updateFilter(i, { negate: !f.negate })}
-                  className={`flex-shrink-0 text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
+                  className={`flex-shrink-0 text-xs md:text-[10px] font-bold rounded px-1.5 py-0.5 border transition-colors ${
                     f.negate
                       ? 'text-orange-400 border-orange-500/50 bg-orange-500/10'
                       : isDark ? 'text-gray-600 border-white/10 hover:text-gray-400' : 'text-gray-400 border-gray-200 hover:text-gray-600'
@@ -844,7 +844,7 @@ function CompanyList({
           ))}
           <button
             onClick={addFilter}
-            className={`flex items-center text-[10px] font-medium h-6 ${t.sortIcon}`}
+            className={`flex items-center text-xs md:text-[10px] font-medium h-6 ${t.sortIcon}`}
           >
             + Add filter
           </button>
@@ -889,7 +889,7 @@ function CompanyList({
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); onExpand(company) }}
-                  className={`opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 w-6 h-6 rounded-md flex items-center justify-center ${t.toolbarBtn}`}
+                  className={`opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 w-8 h-8 md:w-6 md:h-6 rounded-md flex items-center justify-center ${t.toolbarBtn}`}
                   data-tooltip="View details" data-tooltip-pos="left"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -907,7 +907,7 @@ function CompanyList({
           <button
             onClick={() => handlePageChange(page - 1)}
             disabled={page === 1}
-            className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
+            className={`text-sm md:text-xs font-medium disabled:opacity-30 transition-colors px-4 py-2.5 md:px-2 md:py-1 ${t.paginationBtn}`}
             data-tooltip="Previous page"
           >
             &larr; Prev
@@ -918,7 +918,7 @@ function CompanyList({
           <button
             onClick={() => handlePageChange(page + 1)}
             disabled={page === totalPages}
-            className={`text-xs font-medium disabled:opacity-30 transition-colors px-2 py-1 ${t.paginationBtn}`}
+            className={`text-sm md:text-xs font-medium disabled:opacity-30 transition-colors px-4 py-2.5 md:px-2 md:py-1 ${t.paginationBtn}`}
             data-tooltip="Next page"
           >
             Next &rarr;

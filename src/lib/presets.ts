@@ -37,6 +37,9 @@ const COL = {
   diffusionEtab: "Statut de diffusion de l'établissement",
 }
 
+/** JSONB field keys required by preset filter tests — always included in field projections. */
+export const PRESET_COLUMN_KEYS: string[] = Object.values(COL)
+
 /** Derives the NAF Rev2 section letter from an APE code (e.g. '70.22Z' → 'M'). */
 function nafSection(f: Record<string, string>): string {
   const div = parseInt((f[COL.apeEtab] ?? '').substring(0, 2), 10)

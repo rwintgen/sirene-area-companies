@@ -55,7 +55,7 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
               {fields["D\u00e9nomination de l'unit\u00e9 l\u00e9gale"] || fields["D\u00e9nomination usuelle de l'\u00e9tablissement"] || fields.SIRET || 'Company Details'}
             </h2>
             {company.lat && company.lon && (
-              <p className={`text-[10px] mt-1 font-mono ${t.coords}`}>
+              <p className={`text-xs md:text-[10px] mt-1 font-mono ${t.coords}`}>
                 {company.lat.toFixed(5)}, {company.lon.toFixed(5)}
               </p>
             )}
@@ -71,7 +71,7 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
               return (
                 <div key={col} className="flex items-baseline gap-3 py-1.5">
                   <span
-                    className={`text-[10px] font-medium uppercase tracking-wider flex-shrink-0 w-[200px] truncate cursor-default ${t.label}`}
+                    className={`text-xs md:text-[10px] font-medium uppercase tracking-wider flex-shrink-0 w-[40%] md:w-[200px] min-w-0 whitespace-normal break-words md:truncate cursor-default ${t.label}`}
                     onMouseMove={(e) => setTooltip({ text: col, x: e.clientX + 12, y: e.clientY + 12 })}
                     onMouseLeave={() => setTooltip(null)}
                   >
@@ -130,7 +130,7 @@ export default function CompanyDetail({ company, displayColumns, isDark, onClose
 
         {tooltip && createPortal(
           <div
-            className="fixed z-[10000] px-2 py-1 rounded-md bg-gray-800 text-gray-100 text-[11px] font-medium whitespace-nowrap pointer-events-none shadow-lg"
+            className="fixed z-[10000] px-2 py-1 rounded-md bg-gray-800 text-gray-100 text-xs md:text-[11px] font-medium whitespace-nowrap pointer-events-none shadow-lg hidden md:block"
             style={{ left: tooltip.x, top: tooltip.y }}
           >
             {tooltip.text}

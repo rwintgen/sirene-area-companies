@@ -207,13 +207,13 @@ export default function SettingsModal({
                   <p className={`text-sm font-medium truncate ${t.title}`}>{user.displayName ?? 'User'}</p>
                   {user.email && (
                     <div className="flex items-center gap-1">
-                      <p className={`text-[11px] truncate ${t.label}`}>{user.email}</p>
+                      <p className={`text-xs md:text-[11px] truncate ${t.label}`}>{user.email}</p>
                       {user.emailVerified ? (
                         <svg className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
                       ) : user.providerId === 'password' ? (
-                        <span className="text-[9px] font-medium text-amber-500 flex-shrink-0">unverified</span>
+                        <span className="text-[11px] md:text-[9px] font-medium text-amber-500 flex-shrink-0">unverified</span>
                       ) : null}
                     </div>
                   )}
@@ -236,19 +236,19 @@ export default function SettingsModal({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                   </svg>
                 )}
-                <span className="text-[11px] font-medium truncate">{orgName}</span>
+                <span className="text-xs md:text-[11px] font-medium truncate">{orgName}</span>
                 {(orgRole === 'owner' || orgRole === 'admin') && (
-                  <a href="/org" onClick={handleClose} className={`text-[10px] font-medium ml-auto flex-shrink-0 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors`}>Manage</a>
+                  <a href="/org" onClick={handleClose} className={`text-xs md:text-[10px] font-medium ml-auto flex-shrink-0 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'} transition-colors`}>Manage</a>
                 )}
               </div>
             ) : userTier === 'enterprise' && !orgId ? (
-              <a href="/org" onClick={handleClose} className="flex items-center gap-1.5 mb-1.5 text-[11px] font-medium text-violet-500 hover:text-violet-400 transition-colors">
+              <a href="/org" onClick={handleClose} className="flex items-center gap-1.5 mb-1.5 text-xs md:text-[11px] font-medium text-violet-500 hover:text-violet-400 transition-colors">
                 <span>+ Set up your organization</span>
               </a>
             ) : null}
             <button
               onClick={toggleAll}
-              className={`text-[10px] font-medium transition-colors ${t.chevronBtn}`}
+              className={`text-xs md:text-[10px] font-medium transition-colors ${t.chevronBtn}`}
             >
               {allOpen ? 'Collapse all' : 'Expand all'}
             </button>
@@ -271,7 +271,7 @@ export default function SettingsModal({
                 {settingsOpen && (
                   <div className="mt-2 space-y-3">
               <div>
-                <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Theme</div>
+                <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Theme</div>
                 <div className={`flex rounded-lg border overflow-hidden ${t.segmentBorder}`}>
                   {([
                     { mode: 'system' as const, label: 'Auto', icon: (
@@ -293,7 +293,7 @@ export default function SettingsModal({
                     <button
                       key={mode}
                       onClick={() => setThemeMode(mode)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-medium transition-colors ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs md:text-[11px] font-medium transition-colors ${
                         themeMode === mode ? t.segmentActive : t.segmentInactive
                       }`}
                     >
@@ -305,7 +305,7 @@ export default function SettingsModal({
               </div>
 
               <div>
-                <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Map Style</div>
+                <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Map Style</div>
                 <div className={`flex rounded-lg border overflow-hidden ${t.segmentBorder}`}>
                   {([
                     { style: 'default' as const, label: 'Default' },
@@ -315,7 +315,7 @@ export default function SettingsModal({
                     <button
                       key={style}
                       onClick={() => setMapStyle(style)}
-                      className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
+                      className={`flex-1 py-1.5 text-xs md:text-[11px] font-medium transition-colors ${
                         mapStyle === style ? t.segmentActive : t.segmentInactive
                       }`}
                     >
@@ -327,11 +327,11 @@ export default function SettingsModal({
 
               {user && subscriptionStatus === 'past_due' && userTier !== 'enterprise' && (
                 <div className={`rounded-lg border p-2.5 ${isDark ? 'border-red-500/30 bg-red-500/10' : 'border-red-200 bg-red-50'}`}>
-                  <p className={`text-[11px] font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Payment failed</p>
-                  <p className={`text-[10px] mt-0.5 ${isDark ? 'text-red-400/80' : 'text-red-600'}`}>Update your payment method to avoid losing access.</p>
+                  <p className={`text-xs md:text-[11px] font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>Payment failed</p>
+                  <p className={`text-xs md:text-[10px] mt-0.5 ${isDark ? 'text-red-400/80' : 'text-red-600'}`}>Update your payment method to avoid losing access.</p>
                   <button
                     onClick={() => { onManagePlan(); handleClose() }}
-                    className={`text-[10px] font-medium mt-1.5 px-2.5 py-1 rounded-lg transition-colors ${isDark ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                    className={`text-xs md:text-[10px] font-medium mt-1.5 px-2.5 py-1 rounded-lg transition-colors ${isDark ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                   >
                     Update payment method →
                   </button>
@@ -340,13 +340,13 @@ export default function SettingsModal({
 
               {user && userTier !== 'enterprise' && (
                 <div>
-                  <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Plan</div>
+                  <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Plan</div>
                   <button
                     onClick={() => {
                       if (userTier !== 'free') { onManagePlan(); handleClose() }
                       else { onPaywall('plan'); handleClose() }
                     }}
-                    className={`w-full text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn} ${t.btnHover}`}
+                    className={`w-full text-xs md:text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn} ${t.btnHover}`}
                   >
                     {userTier === 'free' ? 'Upgrade plan' : 'Manage plan'}
                   </button>
@@ -373,36 +373,36 @@ export default function SettingsModal({
                 {dataOpen && (
                   <div className="mt-2 space-y-3">
                     <div>
-                      <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Default Fields</div>
+                      <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Default Fields</div>
                       <div className={`rounded-lg border p-3 space-y-2.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                         <div className="grid grid-cols-3 gap-2">
                           <button
                             onClick={() => onFieldsModal('global')}
-                            className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                            className={`text-xs md:text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
                           >
                             Global ({globalVisibleCount})
                           </button>
                           <button
                             onClick={() => onFieldsModal('list')}
-                            className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                            className={`text-xs md:text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
                           >
                             List ({listColumns.length})
                           </button>
                           <button
                             onClick={() => onFieldsModal('popup')}
-                            className={`text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
+                            className={`text-xs md:text-[11px] font-medium py-1.5 rounded-lg border transition-colors ${t.btn}`}
                           >
                             Popup ({popupColumns.length})
                           </button>
                         </div>
-                        <p className={`text-[10px] ${t.label}`}>
+                        <p className={`text-xs md:text-[10px] ${t.label}`}>
                           Global controls hidden fields. List and Popup control visible fields for each view.
                         </p>
                       </div>
                     </div>
 
                     <div>
-                      <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Default Quick Filters</div>
+                      <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Default Quick Filters</div>
                       <div className={`rounded-lg border p-3 space-y-2.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                         {canUsePresets(userTier) ? (
                           <div className="space-y-1.5">
@@ -419,7 +419,7 @@ export default function SettingsModal({
                                       return (
                                         <span key={preset.id} className="contents">
                                           {active && activeIdx > 0 && (
-                                            <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>or</span>
+                                            <span className={`text-[11px] md:text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>or</span>
                                           )}
                                           <PresetPill
                                             label={preset.label}
@@ -441,17 +441,17 @@ export default function SettingsModal({
                             {defaultPresets.length > 0 && (
                               <button
                                 onClick={() => onDefaultPresetsChange([])}
-                                className={`text-[10px] font-medium mt-1 ${isDark ? 'text-gray-500 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                                className={`text-xs md:text-[10px] font-medium mt-1 ${isDark ? 'text-gray-500 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
                               >
                                 Clear all
                               </button>
                             )}
-                            <p className={`text-[10px] ${t.label}`}>
+                            <p className={`text-xs md:text-[10px] ${t.label}`}>
                               These quick filters will be automatically selected as pre-search filters on every new search.
                             </p>
                           </div>
                         ) : (
-                          <p className={`text-[10px] ${t.label}`}>
+                          <p className={`text-xs md:text-[10px] ${t.label}`}>
                             Default quick filters are managed automatically on your current plan.
                           </p>
                         )}
@@ -467,7 +467,7 @@ export default function SettingsModal({
                       }
                       return (
                         <div>
-                          <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Result Limit</div>
+                          <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Result Limit</div>
                           <div className={`rounded-lg border p-3 space-y-2.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                             <input
                               type="range"
@@ -486,7 +486,7 @@ export default function SettingsModal({
                                 max={maxForTier}
                                 value={currentValue}
                                 onChange={(e) => handleChange(parseInt(e.target.value, 10))}
-                                className={`flex-1 min-w-0 rounded-md border px-2 py-1 text-[11px] outline-none transition-colors ${
+                                className={`flex-1 min-w-0 rounded-md border px-2 py-1 text-xs md:text-[11px] outline-none transition-colors ${
                                   isDark
                                     ? 'bg-white/5 border-white/10 text-white focus:border-white/30'
                                     : 'bg-white border-gray-200 text-gray-900 focus:border-blue-400'
@@ -495,7 +495,7 @@ export default function SettingsModal({
                               <button
                                 disabled={currentValue === maxForTier}
                                 onClick={() => onCustomResultLimitChange(maxForTier)}
-                                className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                className={`flex-shrink-0 text-xs md:text-[10px] font-semibold px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                   isDark ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                                 }`}
                               >
@@ -503,9 +503,9 @@ export default function SettingsModal({
                               </button>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className={`text-[10px] ${t.label}`}>{currentValue.toLocaleString()} / {maxForTier.toLocaleString()}</span>
+                              <span className={`text-xs md:text-[10px] ${t.label}`}>{currentValue.toLocaleString()} / {maxForTier.toLocaleString()}</span>
                               {currentValue > 50_000 && (
-                                <span className="text-[10px] font-medium text-amber-500">⚠ May be slow</span>
+                                <span className="text-xs md:text-[10px] font-medium text-amber-500">⚠ May be slow</span>
                               )}
                             </div>
                           </div>
@@ -549,20 +549,20 @@ export default function SettingsModal({
                   {aiOpen && (
                     <div className="mt-2">
                       {aiOverviewsList.length === 0 ? (
-                        <p className={`text-[11px] ${t.emptyText}`}>No AI overviews yet</p>
+                        <p className={`text-xs md:text-[11px] ${t.emptyText}`}>No AI overviews yet</p>
                       ) : (
                         <div className="space-y-1 max-h-48 overflow-y-auto">
                           {aiOverviewsList.map((entry) => (
                             <button
                               key={entry.siret}
                               onClick={() => { onViewAIOverview(entry.siret); handleClose() }}
-                              className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer text-left ${t.aiItem}`}
+                              className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs md:text-[11px] transition-colors cursor-pointer text-left ${t.aiItem}`}
                             >
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium truncate">{entry.companyName}</p>
-                                {entry.city && <p className={`text-[10px] truncate ${t.aiItemSub}`}>{entry.city}</p>}
+                                {entry.city && <p className={`text-xs md:text-[10px] truncate ${t.aiItemSub}`}>{entry.city}</p>}
                               </div>
-                              <span className={`text-[10px] flex-shrink-0 ml-2 ${t.aiItemSub}`}>
+                              <span className={`text-xs md:text-[10px] flex-shrink-0 ml-2 ${t.aiItemSub}`}>
                                 {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : ''}
                               </span>
                             </button>
@@ -596,7 +596,7 @@ export default function SettingsModal({
             {user && userTier !== 'enterprise' && !orgId && (
               <div className={`border-t ${t.sectionBorder}`}>
                 <div className="px-4 py-3">
-                  <div className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Danger Zone</div>
+                  <div className={`text-xs md:text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${t.label}`}>Danger Zone</div>
                   {!deleteActive ? (
                     <button
                       onClick={() => setDeleteActive(true)}
@@ -606,7 +606,7 @@ export default function SettingsModal({
                     </button>
                   ) : (
                     <div className="space-y-1.5">
-                      <p className={`text-[11px] ${t.dangerText}`}>
+                      <p className={`text-xs md:text-[11px] ${t.dangerText}`}>
                         Type your email to confirm deletion
                       </p>
                       <input
@@ -651,7 +651,7 @@ export default function SettingsModal({
                   Sign Out
                 </button>
                 {prefsSaved && (
-                  <span className={`text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'} animate-prefs-saved`}>
+                  <span className={`text-xs md:text-[10px] flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-600'} animate-prefs-saved`}>
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                     Preferences saved
                   </span>

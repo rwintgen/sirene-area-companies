@@ -9,6 +9,12 @@ html, body {
 /* Support safe areas on iOS devices (notch/home indicator) */
 html {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Eliminate 300ms tap delay on touch devices */
+button, a, [role="button"] {
+  touch-action: manipulation;
 }
 
 /* Lock scroll on full-screen app pages (map/org). Marketing pages scroll normally. */
@@ -499,10 +505,11 @@ input[type=range].pdm-range::-moz-range-progress {
 
 @keyframes loading-bar {
   0% { transform: translateX(-200%); }
-  100% { transform: translateX(200%); }
+  50% { transform: translateX(200%); }
+  100% { transform: translateX(-200%); }
 }
 .animate-loading-bar {
-  animation: loading-bar 1.5s ease-in-out infinite;
+  animation: loading-bar 2s ease-in-out infinite;
 }
 
 /* === Mobile: larger touch targets for Leaflet controls === */
@@ -525,5 +532,17 @@ input[type=range].pdm-range::-moz-range-progress {
   /* Hide tooltip on touch devices */
   [data-tooltip]::after {
     display: none !important;
+  }
+  /* Larger Leaflet popups on mobile */
+  .leaflet-popup-content {
+    font-size: 14px !important;
+  }
+  .leaflet-popup-content-wrapper {
+    min-width: 200px;
+  }
+  .leaflet-popup-close-button {
+    font-size: 24px !important;
+    width: 30px !important;
+    height: 30px !important;
   }
 }

@@ -115,7 +115,7 @@ export default function SavedSearches({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div className={`pointer-events-none absolute right-0 bottom-full mb-2 w-52 rounded-lg border px-3 py-2 text-[11px] leading-relaxed shadow-xl opacity-0 group-hover/info:opacity-100 transition-opacity z-[9999] ${
+          <div className={`pointer-events-none absolute right-0 bottom-full mb-2 w-52 rounded-lg border px-3 py-2 text-xs md:text-[11px] leading-relaxed shadow-xl opacity-0 group-hover/info:opacity-100 transition-opacity z-[9999] ${
             isDark ? 'bg-gray-800 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-600'
           }`}>
             Saves the current map area along with any active filters and sort settings, so you can restore the exact same search later.
@@ -138,13 +138,13 @@ export default function SavedSearches({
                   <span className={`text-xs flex-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Delete &ldquo;{area.name}&rdquo;?</span>
                   <button
                     onClick={() => handleDeleteConfirm(area)}
-                    className="text-[11px] font-semibold text-red-400 hover:text-red-300 transition-colors px-1.5 py-0.5 rounded"
+                    className="text-xs md:text-[11px] font-semibold text-red-400 hover:text-red-300 transition-colors px-1.5 py-0.5 rounded"
                   >
                     Delete
                   </button>
                   <button
                     onClick={() => setPendingDeleteId(null)}
-                    className={`text-[11px] font-medium transition-colors px-1.5 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                    className={`text-xs md:text-[11px] font-medium transition-colors px-1.5 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                   >
                     Cancel
                   </button>
@@ -161,13 +161,13 @@ export default function SavedSearches({
                   />
                   <button
                     onClick={() => handleRename(area.id)}
-                    className={`text-[11px] font-semibold transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400'}`}
+                    className={`text-xs md:text-[11px] font-semibold transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-300 hover:text-white' : 'text-violet-500 hover:text-violet-400'}`}
                   >
                     Save
                   </button>
                   <button
                     onClick={() => { setRenamingId(null); setRenameValue('') }}
-                    className={`text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                    className={`text-xs md:text-[11px] font-medium transition-colors px-1 py-0.5 rounded ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                   >
                     Cancel
                   </button>
@@ -197,7 +197,7 @@ export default function SavedSearches({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenamingId(area.id); setRenameValue(area.name) ; setTimeout(() => renameInputRef.current?.focus(), 50) }}
-                    className={`flex-shrink-0 w-6 h-6 mr-0.5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all ${isDark ? 'text-gray-600 hover:text-gray-300' : 'text-gray-400 hover:text-violet-600'}`}
+                    className={`flex-shrink-0 w-8 h-8 md:w-6 md:h-6 mr-0.5 rounded flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all ${isDark ? 'text-gray-600 hover:text-gray-300' : 'text-gray-400 hover:text-violet-600'}`}
                     data-tooltip="Rename search"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +206,7 @@ export default function SavedSearches({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setPendingDeleteId(area.id) }}
-                    className={`flex-shrink-0 w-6 h-6 mr-1 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all ${t.deleteBtn}`}
+                    className={`flex-shrink-0 w-8 h-8 md:w-6 md:h-6 mr-1 rounded flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all ${t.deleteBtn}`}
                     data-tooltip="Delete search"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

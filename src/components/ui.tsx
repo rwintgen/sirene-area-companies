@@ -40,7 +40,7 @@ export function Modal({ isDark, onClose, zIndex, children, className = '' }: {
       } ${visible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
     >
-      <div className={`rounded-t-2xl md:rounded-2xl border shadow-2xl transition-all duration-200 ${
+      <div className={`rounded-t-2xl md:rounded-2xl border shadow-2xl transition-all duration-200 pb-[env(safe-area-inset-bottom)] md:pb-0 ${
         visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 md:scale-95 translate-y-4 md:translate-y-0'
       } ${className}`}>
         {children(handleClose)}
@@ -63,7 +63,7 @@ export function CloseButton({ onClick, isDark, className = '' }: {
   return (
     <button
       onClick={onClick}
-      className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+      className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors p-2 -m-2 md:p-0 md:m-0 ${
         isDark
           ? 'text-gray-600 hover:text-gray-300 hover:bg-white/10'
           : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
@@ -87,13 +87,13 @@ export function Checkbox({ checked, isDark }: {
   isDark: boolean
 }) {
   return (
-    <div className={`w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border transition-all ${
+    <div className={`w-5 h-5 md:w-3.5 md:h-3.5 rounded flex-shrink-0 flex items-center justify-center border transition-all ${
       checked
         ? isDark ? 'border-gray-400 bg-gray-400' : 'border-violet-600 bg-violet-600'
         : isDark ? 'border-white/20 bg-white/5' : 'border-gray-300 bg-white'
     }`}>
       {checked && (
-        <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3 h-3 md:w-2 md:h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
         </svg>
       )}
@@ -155,6 +155,8 @@ export function InfoTooltip({ text, children, isDark, position = 'top', width = 
   position?: 'top' | 'bottom'
   width?: string
 }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   const iconClass = isDark
     ? 'text-gray-600 hover:text-gray-400'
     : 'text-gray-400 hover:text-gray-600'
@@ -165,13 +167,32 @@ export function InfoTooltip({ text, children, isDark, position = 'top', width = 
     ? 'bottom-full left-1/2 -translate-x-1/2 mb-2'
     : 'top-full left-1/2 -translate-x-1/2 mt-2'
 
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [open])
+
   return (
-    <div className="relative group">
-      <svg className={`w-3.5 h-3.5 cursor-help transition-colors ${iconClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="relative group" ref={ref}>
+      <svg
+        className={`w-3.5 h-3.5 cursor-help transition-colors ${iconClass}`}
+        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        onClick={() => setOpen(o => !o)}
+      >
         <circle cx="12" cy="12" r="10" strokeWidth={2} />
         <path strokeLinecap="round" strokeWidth={2} d="M12 16v-4m0-4h.01" />
       </svg>
-      <div className={`absolute ${pos} ${width} rounded-lg border px-3 py-2 text-[11px] leading-snug opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-10 ${tooltipClass}`}>
+      <div className={`absolute ${pos} ${width} rounded-lg border px-3 py-2 text-xs md:text-[11px] leading-snug pointer-events-none transition-all duration-150 z-10 ${tooltipClass} ${
+        open ? 'opacity-100 scale-100' : 'opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100'
+      }`}>
         {children ?? text}
       </div>
     </div>
@@ -216,7 +237,7 @@ export function PresetPill({ label, active, isDark, custom, org, disabled, onCli
       onMouseLeave={onMouseLeave}
       data-tooltip={tooltip}
       data-tooltip-pos={tooltipPos}
-      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${cls}`}
+      className={`text-xs md:text-[10px] font-medium px-2.5 py-1 md:px-2 md:py-0.5 rounded-full border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${cls}`}
     >
       {label}
     </button>
@@ -245,7 +266,7 @@ export function ConfirmModal({ isDark, title, message, confirmLabel = 'Confirm',
           <div className="flex gap-2 justify-end">
             <button
               onClick={handleClose}
-              className={`text-[11px] font-medium px-4 py-1.5 rounded-lg border transition-colors ${
+              className={`text-xs md:text-[11px] font-medium px-4 py-2 md:py-1.5 rounded-lg border transition-colors ${
                 isDark ? 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5' : 'border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -253,7 +274,7 @@ export function ConfirmModal({ isDark, title, message, confirmLabel = 'Confirm',
             </button>
             <button
               onClick={() => { handleClose(); setTimeout(onConfirm, 200) }}
-              className={`text-[11px] font-medium px-4 py-1.5 rounded-lg transition-colors ${
+              className={`text-xs md:text-[11px] font-medium px-4 py-2 md:py-1.5 rounded-lg transition-colors ${
                 danger
                   ? isDark ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-red-50 text-red-600 hover:bg-red-100'
                   : isDark ? 'bg-white text-gray-900 hover:bg-gray-200' : 'bg-violet-600 text-white hover:bg-violet-700'
@@ -286,7 +307,7 @@ export function SectionTitle({ children, isDark, className = '' }: {
   className?: string
 }) {
   return (
-    <div className={`text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-600' : 'text-gray-400'} ${className}`}>
+    <div className={`text-[11px] md:text-[9px] uppercase tracking-widest font-semibold ${isDark ? 'text-gray-600' : 'text-gray-400'} ${className}`}>
       {children}
     </div>
   )

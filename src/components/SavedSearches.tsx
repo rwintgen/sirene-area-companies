@@ -155,6 +155,7 @@ export default function SavedSearches({
                 <div className="flex-1 flex items-center gap-1 px-2 py-1">
                   <input
                     ref={renameInputRef}
+                    name="search-rename"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleRename(area.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue('') } }}

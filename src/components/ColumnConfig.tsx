@@ -142,6 +142,7 @@ export default function ColumnConfig({
       <div className="px-4 pt-2 pb-1">
         <input
           type="text"
+          name="column-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={txt.searchFields}

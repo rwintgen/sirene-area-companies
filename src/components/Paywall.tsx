@@ -404,6 +404,7 @@ export default function Paywall({ isDark, featureName, onClose, onCheckout, onRe
             <div className="flex items-center gap-2 mt-2">
               <input
                 type="text"
+                name="discount-code"
                 value={discountCode}
                 onChange={(e) => { setDiscountCode(e.target.value); setDiscountError(''); setDiscountSuccess(false) }}
                 onKeyDown={(e) => {

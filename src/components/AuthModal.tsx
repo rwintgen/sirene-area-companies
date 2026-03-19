@@ -195,6 +195,7 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
               <label className={`block text-xs font-medium mb-1 ${t.label}`}>{txt.nameOptional}</label>
               <input
                 type="text"
+                name="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={txt.yourName}
@@ -206,6 +207,7 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
             <label className={`block text-xs font-medium mb-1 ${t.label}`}>{txt.email}</label>
             <input
               type="email"
+              name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -218,6 +220,7 @@ export default function AuthModal({ isDark, onClose, isSigningIn }: Props) {
             <label className={`block text-xs font-medium mb-1 ${t.label}`}>{txt.password}</label>
             <input
               type="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={tab === 'signup' ? txt.atLeast6Chars : '••••••••'}

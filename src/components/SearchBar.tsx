@@ -142,6 +142,7 @@ export default function SearchBar({ onSelect, isDark }: Props) {
         <input
           ref={inputRef}
           type="text"
+          name="location-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}

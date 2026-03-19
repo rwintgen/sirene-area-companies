@@ -494,6 +494,7 @@ export default function SettingsModal({
                           <div className={`rounded-lg border p-3 space-y-2.5 ${isDark ? 'bg-white/3 border-white/8' : 'bg-gray-50/50 border-gray-200'}`}>
                             <input
                               type="range"
+                              name="settings-result-limit-range"
                               min={1}
                               max={maxForTier}
                               step={1}
@@ -505,6 +506,7 @@ export default function SettingsModal({
                             <div className="flex items-center gap-1.5">
                               <input
                                 type="number"
+                                name="settings-result-limit"
                                 min={1}
                                 max={maxForTier}
                                 value={currentValue}
@@ -634,6 +636,7 @@ export default function SettingsModal({
                       </p>
                       <input
                         type="email"
+                        name="delete-confirm-email"
                         value={deleteEmail}
                         onChange={(e) => setDeleteEmail(e.target.value)}
                         placeholder={user.email ?? 'your@email.com'}

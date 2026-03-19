@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { en, fr } from './app-translations'
 export { tPreset, tGroup, tTier } from './app-translations'
 
@@ -22,17 +22,15 @@ const AppLocaleContext = createContext<AppLocaleContextValue>({
   t: fr,
 })
 
-function getInitialLocale(): AppLocale {
-  if (typeof window === 'undefined') return 'fr'
-  try {
-    const stored = localStorage.getItem('pdm_app_locale')
-    if (stored === 'en' || stored === 'fr') return stored
-  } catch {}
-  return 'fr'
-}
-
 export function AppLocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<AppLocale>(getInitialLocale)
+  const [locale, setLocaleState] = useState<AppLocale>('fr')
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pdm_app_locale')
+      if (stored === 'en' || stored === 'fr') setLocaleState(stored)
+    } catch {}
+  }, [])
 
   const setLocale = useCallback((l: AppLocale) => {
     setLocaleState(l)

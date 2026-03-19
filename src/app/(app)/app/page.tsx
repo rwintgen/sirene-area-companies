@@ -64,8 +64,6 @@ export default function Home() {
   const hasExplicitHiddenPrefs = useRef(false)
   const preQueryPresetsInit = useRef(false)
   const searchAbort = useRef<AbortController | null>(null)
-  const canHover = useRef(true)
-  useEffect(() => { canHover.current = window.matchMedia('(hover: hover)').matches }, [])
   const [prefsSaved, setPrefsSaved] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [showPortalModal, setShowPortalModal] = useState(false)
@@ -1337,8 +1335,8 @@ export default function Home() {
                                   isDark={isDark}
                                   disabled={locked}
                                   onClick={() => setPreQueryPresets((prev) => active ? prev.filter((id) => id !== preset.id) : [...prev, preset.id])}
-                                  onMouseEnter={() => { if (canHover.current) setHoveredPQPreset(preset.id) }}
-                                  onMouseMove={(e: React.MouseEvent) => { if (canHover.current) setPresetTooltipPos({ x: e.clientX, y: e.clientY }) }}
+                                  onMouseEnter={() => setHoveredPQPreset(preset.id)}
+                                  onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
                                   onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                                 />
                               </span>
@@ -1373,8 +1371,8 @@ export default function Home() {
                               org
                               disabled={locked}
                               onClick={() => setPreQueryOrgIds((prev) => active ? prev.filter((id) => id !== oq.id) : [...prev, oq.id])}
-                              onMouseEnter={() => { if (canHover.current) setHoveredPQPreset(oq.id) }}
-                              onMouseMove={(e: React.MouseEvent) => { if (canHover.current) setPresetTooltipPos({ x: e.clientX, y: e.clientY }) }}
+                              onMouseEnter={() => setHoveredPQPreset(oq.id)}
+                              onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
                               onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                             />
                           )
@@ -1410,8 +1408,8 @@ export default function Home() {
                                 custom
                                 disabled={locked}
                                 onClick={() => setPreQueryCustomIds((prev) => active ? prev.filter((id) => id !== cp.id) : [...prev, cp.id])}
-                                onMouseEnter={() => { if (canHover.current) setHoveredPQPreset(cp.id) }}
-                                onMouseMove={(e: React.MouseEvent) => { if (canHover.current) setPresetTooltipPos({ x: e.clientX, y: e.clientY }) }}
+                                onMouseEnter={() => setHoveredPQPreset(cp.id)}
+                                onMouseMove={(e: React.MouseEvent) => setPresetTooltipPos({ x: e.clientX, y: e.clientY })}
                                 onMouseLeave={() => { setHoveredPQPreset(null); setPresetTooltipPos(null) }}
                               />
                               {!locked && (
@@ -1504,7 +1502,7 @@ export default function Home() {
                   </div>
                   {hoveredDef && presetTooltipPos && (
                     <div
-                      className="fixed z-[10000] pointer-events-none whitespace-nowrap"
+                      className="fixed z-[10000] pointer-events-none whitespace-nowrap hidden md:block"
                       style={{ left: presetTooltipPos.x - 8, top: presetTooltipPos.y + 14, background: '#1f2937', color: '#f3f4f6', fontSize: '11px', fontWeight: 500, lineHeight: 1.3, padding: '4px 8px', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', transform: 'translateX(-100%)' }}
                     >
                       {'description' in hoveredDef ? (hoveredDef as any).description : `${(hoveredDef as CustomPreset).negate ? 'NOT ' : ''}${(hoveredDef as CustomPreset).column} ${(hoveredDef as CustomPreset).operator} ${(hoveredDef as CustomPreset).value}`}

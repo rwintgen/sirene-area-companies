@@ -771,7 +771,7 @@ function CompanyList({
             if (!text) return null
             return (
               <div
-                className="fixed z-[10000] pointer-events-none whitespace-nowrap"
+                className="fixed z-[10000] pointer-events-none whitespace-nowrap hidden md:block"
                 style={{ left: presetTooltipPos.x - 8, top: presetTooltipPos.y + 14, background: '#1f2937', color: '#f3f4f6', fontSize: '11px', fontWeight: 500, lineHeight: 1.3, padding: '4px 8px', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', transform: 'translateX(-100%)' }}
               >
                 {text}

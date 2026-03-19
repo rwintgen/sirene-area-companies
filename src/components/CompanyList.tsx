@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, memo } from 'react'
 import { PRESET_FILTERS, PRESET_GROUPS, applyPresets, type CustomPreset } from '@/lib/presets'
 import { canExportPremium, type UserTier } from '@/lib/usage'
-import { PresetPill, CardSection, SectionTitle } from '@/components/ui'
+import { QuickFilterPill, CardSection, SectionTitle } from '@/components/ui'
 import { useAppLocale, tPreset, tGroup } from '@/lib/useAppLocale'
 
 interface Filter {
@@ -549,7 +549,7 @@ function CompanyList({
                         {isActive && activeIdx > 0 && (
                           <span className={`text-[11px] md:text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{txt.orLabel}</span>
                         )}
-                        <PresetPill
+                        <QuickFilterPill
                           label={tPreset(txt, preset.id, preset.label)}
                           active={isActive}
                           isDark={isDark}
@@ -601,7 +601,7 @@ function CompanyList({
                   const isActive = activePresets.includes(oq.id)
                   const isPreQuery = disabledPresetIds.includes(oq.id)
                   return (
-                    <PresetPill
+                    <QuickFilterPill
                       key={oq.id}
                       label={oq.label}
                       active={isActive}
@@ -646,7 +646,7 @@ function CompanyList({
                     const isPreQuery = disabledPresetIds.includes(cp.id)
                     return (
                       <div key={cp.id} className="group/custom inline-flex items-center gap-0.5">
-                        <PresetPill
+                        <QuickFilterPill
                           label={cp.label}
                           active={isActive}
                           isDark={isDark}

@@ -11,7 +11,7 @@ import ColumnConfig from '@/components/ColumnConfig'
 import Paywall from '@/components/Paywall'
 import AIOverview from '@/components/AIOverview'
 import SettingsModal from '@/components/SettingsModal'
-import { Modal, CloseButton, PresetPill, CardSection, SectionTitle, ConfirmModal } from '@/components/ui'
+import { Modal, CloseButton, QuickFilterPill, CardSection, SectionTitle, ConfirmModal } from '@/components/ui'
 import { applyPresets, PRESET_FILTERS, PRESET_GROUPS, DEFAULT_PRE_QUERY_PRESETS, PRESET_COLUMN_KEYS, type CustomPreset } from '@/lib/presets'
 import { useAppLocale, tPreset, tGroup } from '@/lib/useAppLocale'
 import { getDefaultHiddenFields, getDefaultListColumns, getDefaultPopupColumns, DEFAULT_LIST_COLS, DEFAULT_POPUP_COLS } from '@/lib/defaultFields'
@@ -1329,7 +1329,7 @@ export default function Home() {
                                 {active && activeIdx > 0 && (
                                   <span className={`text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{txt.orLabel}</span>
                                 )}
-                                <PresetPill
+                                <QuickFilterPill
                                   label={preset.label}
                                   active={active}
                                   isDark={isDark}
@@ -1363,7 +1363,7 @@ export default function Home() {
                         {orgQuickFilters.map((oq) => {
                           const active = preQueryOrgIds.includes(oq.id)
                           return (
-                            <PresetPill
+                            <QuickFilterPill
                               key={oq.id}
                               label={oq.label}
                               active={active}
@@ -1401,7 +1401,7 @@ export default function Home() {
                           const active = preQueryCustomIds.includes(cp.id)
                           return (
                             <div key={cp.id} className="group/custom inline-flex items-center gap-0.5">
-                              <PresetPill
+                              <QuickFilterPill
                                 label={cp.label}
                                 active={active}
                                 isDark={isDark}

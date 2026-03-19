@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal, CloseButton, PresetPill, SectionTitle } from './ui'
+import { Modal, CloseButton, QuickFilterPill, SectionTitle } from './ui'
 import SavedSearches from './SavedSearches'
 import UsageTracker from './UsageTracker'
 import { PRESET_FILTERS, PRESET_GROUPS } from '@/lib/presets'
@@ -444,7 +444,7 @@ export default function SettingsModal({
                                           {active && activeIdx > 0 && (
                                             <span className={`text-[11px] md:text-[9px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{txt.orLabel}</span>
                                           )}
-                                          <PresetPill
+                                          <QuickFilterPill
                                             label={preset.label}
                                             active={active}
                                             isDark={isDark}

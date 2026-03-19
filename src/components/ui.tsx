@@ -216,7 +216,7 @@ const QUICK_FILTER_PILL_STYLES = {
   },
 } as const
 
-interface PresetPillProps {
+interface QuickFilterPillProps {
   label: string
   active: boolean
   isDark: boolean
@@ -231,7 +231,7 @@ interface PresetPillProps {
   tooltipPos?: string
 }
 
-export function PresetPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseMove, onMouseLeave, tooltip, tooltipPos }: PresetPillProps) {
+export function QuickFilterPill({ label, active, isDark, custom, org, disabled, onClick, onMouseEnter, onMouseMove, onMouseLeave, tooltip, tooltipPos }: QuickFilterPillProps) {
   const s = QUICK_FILTER_PILL_STYLES[isDark ? 'dark' : 'light']
   const cls = active ? s.active : s.base
   return (

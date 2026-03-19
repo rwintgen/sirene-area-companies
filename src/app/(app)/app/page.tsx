@@ -127,9 +127,6 @@ export default function Home() {
 
   const [viewportClusters, setViewportClusters] = useState<{ lat: number; lng: number; count: number }[]>([])
   const clusterAbort = useRef<AbortController | null>(null)
-  const filterSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const searchAreaRef = useRef<any>(null)
-  const handleSearchRef = useRef<(geometry: any, options?: { isRefinement?: boolean; overrideFilters?: typeof filters }) => Promise<void>>()
 
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark'
 
@@ -412,11 +409,7 @@ export default function Home() {
     }
   }, [preQueryPresets])
 
-  const handleSearch = async (geometry: any, options: { isRefinement?: boolean; overrideFilters?: typeof filters } = {}) => {
-    if (filterSearchTimer.current) {
-      clearTimeout(filterSearchTimer.current)
-      filterSearchTimer.current = null
-    }
+  const handleSearch = async (geometry: any) => {
     if (searchAbort.current) {
       searchAbort.current.abort()
       searchAbort.current = null
@@ -442,12 +435,11 @@ export default function Home() {
       return
     }
     const uKey = getUserKey(user?.uid ?? null)
-    if (!options.isRefinement) {
-      if (!user && !canSearch(uKey, userTier)) {
-        const limit = TIER_LIMITS[userTier].searchesPerMonth
-        setPaywallFeature(`more than ${limit} searches per month`)
-        return
-      }
+    // Anonymous users: enforce limit client-side. Logged-in users: server enforces.
+    if (!user && !canSearch(uKey, userTier)) {
+      const limit = TIER_LIMITS[userTier].searchesPerMonth
+      setPaywallFeature(`more than ${limit} searches per month`)
+      return
     }
     const controller = new AbortController()
     searchAbort.current = controller
@@ -463,7 +455,6 @@ export default function Home() {
       if (user) {
         try { headers['Authorization'] = `Bearer ${await user.getIdToken()}` } catch {}
       }
-      const postFilters = (options.overrideFilters ?? filters).filter(f => f.column && (f.operator === 'empty' || f.value))
       const allFilters = [
         ...preQueryFilters,
         ...customPresets
@@ -472,9 +463,8 @@ export default function Home() {
         ...orgQuickFilters
           .filter((oq) => preQueryOrgIds.includes(oq.id))
           .map((oq) => ({ column: oq.column, operator: oq.operator, negate: oq.negate, value: oq.value, joinOr: false })),
-        ...postFilters,
       ]
-      const searchBody: Record<string, any> = { geometry, limit: tierLimit, presets: preQueryPresets, filters: allFilters, isRefinement: !!options.isRefinement }
+      const searchBody: Record<string, any> = { geometry, limit: tierLimit, presets: preQueryPresets, filters: allFilters }
       if (connectorSource && orgId) {
         searchBody.connectorId = connectorSource
         searchBody.connectorOrgId = orgId
@@ -555,17 +545,15 @@ export default function Home() {
         }
       }
 
-      if (!options.isRefinement) {
-        if (user && typeof meta.searchCountAfter === 'number') {
-          setSearchCount(meta.searchCountAfter)
-          try {
-            const monthKey = new Date().toISOString().slice(0, 7)
-            localStorage.setItem(`pdm_usage_${uKey}`, JSON.stringify({ searchCount: meta.searchCountAfter, monthKey }))
-          } catch {}
-        } else if (!user) {
-          const newCount = incrementSearchCount(uKey)
-          setSearchCount(newCount)
-        }
+      if (user && typeof meta.searchCountAfter === 'number') {
+        setSearchCount(meta.searchCountAfter)
+        try {
+          const monthKey = new Date().toISOString().slice(0, 7)
+          localStorage.setItem(`pdm_usage_${uKey}`, JSON.stringify({ searchCount: meta.searchCountAfter, monthKey }))
+        } catch {}
+      } else if (!user) {
+        const newCount = incrementSearchCount(uKey)
+        setSearchCount(newCount)
       }
       setCompanies(accumulatedCompanies)
       setSearchArea(geometry)
@@ -586,24 +574,6 @@ export default function Home() {
       setSearchETA(null)
     }
   }
-
-  searchAreaRef.current = searchArea
-  handleSearchRef.current = handleSearch
-
-  /**
-   * Wraps setFilters and debounces a server-side re-search so that post-search
-   * filters are applied via SQL WHERE (buildFilterSQL) instead of client-side
-   * field matching that would fail on non-promoted skeleton columns.
-   */
-  const handleFiltersChange = useCallback((newFilters: typeof filters) => {
-    setFilters(newFilters)
-    if (filterSearchTimer.current) clearTimeout(filterSearchTimer.current)
-    if (searchAreaRef.current) {
-      filterSearchTimer.current = setTimeout(() => {
-        handleSearchRef.current?.(searchAreaRef.current, { isRefinement: true, overrideFilters: newFilters })
-      }, 600)
-    }
-  }, [])
 
   const handleSortChange = useCallback((criteria: { column: string; dir: 'asc' | 'desc' }[]) => {
     setSortCriteria(criteria)
@@ -634,14 +604,40 @@ export default function Home() {
   const handleSignInPrompt = useCallback(() => { setAuthOpen(true) }, [])
 
   /**
-   * Derived company list with active presets applied.
-   * Post-search filters are applied server-side via re-search.
+   * Derived company list with active filters applied.
+   * Used to keep map markers in sync with the filtered list view.
    */
   const mapCompanies = useMemo(() => {
     let result: any[] = [...companies]
+    if (filters.length > 0) {
+      const groups: typeof filters[number][][] = []
+      for (const f of filters) {
+        if (!f.column) continue
+        if (f.joinOr && groups.length > 0) {
+          groups[groups.length - 1].push(f)
+        } else {
+          groups.push([f])
+        }
+      }
+      for (const group of groups) {
+        result = result.filter((c: any) =>
+          group.some((f) => {
+            const val = (c.fields?.[f.column] ?? '').toString().toLowerCase()
+            let match: boolean
+            switch (f.operator) {
+              case 'contains': match = val.includes(f.value.toLowerCase()); break
+              case 'equals': match = val === f.value.toLowerCase(); break
+              case 'empty': match = val.length === 0; break
+              default: match = true
+            }
+            return f.negate ? !match : match
+          })
+        )
+      }
+    }
     result = applyPresets(result, activePresets, [...customPresets, ...orgQuickFilters])
     return result
-  }, [companies, activePresets, customPresets, orgQuickFilters])
+  }, [companies, filters, activePresets, customPresets, orgQuickFilters])
 
   const enterpriseNoOrg = userTier === 'enterprise' && !orgId
 
@@ -742,56 +738,22 @@ export default function Home() {
     } catch {}
   }, [user, clearLocalDataPreservingQuotas])
 
-  /**
-   * Fetches full JSONB fields for one or more companies (by SIRET).
-   * Returns a map of siret → full fields object.
-   */
-  const fetchFullFields = useCallback(async (sirets: string[]): Promise<Record<string, Record<string, string>>> => {
-    if (sirets.length === 0) return {}
-    const token = user ? await user.getIdToken() : undefined
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers.Authorization = `Bearer ${token}`
-    const res = await fetch('/api/search/details', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ sirets }),
-    })
-    if (!res.ok) throw new Error('Failed to load details')
-    const data = await res.json()
-    return data.fields ?? {}
-  }, [user])
-
   const handleExpand = useCallback(async (company: any) => {
     setExpandedCompany(company)
     const siret = company.fields?.SIRET || company.fields?.siret
-    if (!siret) return
-
-    // Lazy-load full JSONB fields for the detail modal
-    try {
-      const [fieldsMap] = await Promise.all([
-        fetchFullFields([siret]),
-        (async () => {
-          if (user && !(siret in aiCacheMap)) {
-            try {
-              const token = await user.getIdToken()
-              const res = await fetch(`/api/ai-overview?siret=${encodeURIComponent(siret)}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              if (res.ok) {
-                const data = await res.json()
-                setAICacheMap((prev) => ({ ...prev, [siret]: data.cached }))
-              }
-            } catch { /* non-critical */ }
-          }
-        })(),
-      ])
-      const fullFields = fieldsMap[siret]
-      if (fullFields) {
-        const enriched = { ...company, fields: { ...company.fields, ...fullFields } }
-        setExpandedCompany((prev: any) => prev?.fields?.SIRET === siret ? enriched : prev)
-      }
-    } catch { /* detail load failed — skeleton still visible */ }
-  }, [user, aiCacheMap, fetchFullFields])
+    if (siret && user && !(siret in aiCacheMap)) {
+      try {
+        const token = await user.getIdToken()
+        const res = await fetch(`/api/ai-overview?siret=${encodeURIComponent(siret)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setAICacheMap((prev) => ({ ...prev, [siret]: data.cached }))
+        }
+      } catch { /* non-critical */ }
+    }
+  }, [user, aiCacheMap])
 
   const handleAskAI = useCallback(async (_company: any) => {
     const uKey = getUserKey(user?.uid ?? null)
@@ -1744,7 +1706,7 @@ export default function Home() {
             sortCriteria={sortCriteria}
             onSortChange={handleSortChange}
             filters={filters}
-            onFiltersChange={handleFiltersChange}
+            onFiltersChange={setFilters}
             activePresets={activePresets}
             onPresetsChange={setActivePresets}
             customPresets={customPresets}
@@ -1863,8 +1825,8 @@ export default function Home() {
           setPreQueryFilters(restoredPreQueryFilters ?? [])
           setPreQueryCustomIds(restoredPreQueryCustomIds ?? [])
           setPreQueryOrgIds(restoredPreQueryOrgIds ?? [])
+          handleSearch(geo)
           setFilters(restoredFilters)
-          handleSearch(geo, { overrideFilters: restoredFilters })
           setSortCriteria(restoredSortCriteria)
           setActivePresets(restoredPresets)
           setActiveSearchId(id)
@@ -1915,7 +1877,6 @@ export default function Home() {
         userTier={userTier}
         onClose={() => setExportOpen(false)}
         onPaywall={setPaywallFeature}
-        fetchFullFields={fetchFullFields}
       />
     )}
 

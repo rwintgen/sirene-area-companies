@@ -314,6 +314,9 @@ body.app-shell {
 }
 
 /* === Tooltip system: data-tooltip attribute === */
+@media (hover: none) {
+  [data-tooltip]::after { display: none !important; }
+}
 [data-tooltip] {
   position: relative;
 }

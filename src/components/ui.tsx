@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 /**
  * Animated modal overlay with enter/exit scale + opacity transitions.
@@ -15,9 +16,11 @@ export function Modal({ isDark, onClose, zIndex, children, className = '' }: {
   className?: string
 }) {
   const [visible, setVisible] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    setMounted(true)
     requestAnimationFrame(() => setVisible(true))
   }, [])
 
@@ -32,20 +35,23 @@ export function Modal({ isDark, onClose, zIndex, children, className = '' }: {
     return () => document.removeEventListener('keydown', handler)
   }, [handleClose])
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <div
       ref={overlayRef}
-      className={`fixed inset-0 ${zIndex} flex items-end md:items-center justify-center backdrop-blur-sm transition-opacity duration-200 ${
+      className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-200 ${
         isDark ? 'bg-black/50' : 'bg-black/30'
       } ${visible ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={(e) => { if (e.target === overlayRef.current) handleClose() }}
     >
-      <div className={`rounded-t-2xl md:rounded-2xl border shadow-2xl transition-all duration-200 pb-[env(safe-area-inset-bottom)] md:pb-0 ${
-        visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 md:scale-95 translate-y-4 md:translate-y-0'
+      <div className={`rounded-2xl border shadow-2xl transition-all duration-200 ${
+        visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'
       } ${className}`}>
         {children(handleClose)}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

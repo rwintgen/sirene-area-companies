@@ -398,7 +398,6 @@ function CompanyList({
         <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 mb-2 ${t.saveInput}`}>
           <input
             ref={saveInputRef}
-            name="save-search"
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setIsSaving(false); setSaveName('') } }}
@@ -685,7 +684,6 @@ function CompanyList({
                 <div className={`rounded-lg border p-2 space-y-1.5 ${t.filterBg}`}>
                   <input
                     type="text"
-                    name="label-name"
                     value={newLabelName}
                     onChange={(e) => setNewLabelName(e.target.value)}
                     placeholder={txt.labelName}
@@ -709,7 +707,6 @@ function CompanyList({
                       NOT
                     </button>
                     <select
-                      name="label-operator"
                       value={newLabelOperator}
                       onChange={(e) => setNewLabelOperator(e.target.value as Filter['operator'])}
                       className={`rounded border px-1 py-1 outline-none ${t.select}`}
@@ -722,7 +719,6 @@ function CompanyList({
                   {newLabelOperator !== 'empty' && (
                     <input
                       type="text"
-                      name="label-value"
                       value={newLabelValue}
                       onChange={(e) => setNewLabelValue(e.target.value)}
                       placeholder={txt.valuePlaceholder}
@@ -825,7 +821,6 @@ function CompanyList({
                   NOT
                 </button>
                 <select
-                  name="filter-operator"
                   value={f.operator}
                   onChange={(e) => updateFilter(i, { operator: e.target.value as Filter['operator'] })}
                   className={`rounded border px-1 py-1 outline-none ${t.select}`}
@@ -837,7 +832,6 @@ function CompanyList({
                 {f.operator !== 'empty' && (
                   <input
                     type="text"
-                    name="filter-value"
                     value={f.value}
                     onChange={(e) => updateFilter(i, { value: e.target.value })}
                     placeholder={txt.valuePlaceholder}

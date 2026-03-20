@@ -1296,7 +1296,6 @@ export default function Home() {
                   <CardSection isDark={isDark}>
                     <SectionTitle isDark={isDark} className="mb-1">{txt.source}</SectionTitle>
                     <select
-                      name="connector-source"
                       value={connectorSource ?? ''}
                       onChange={(e) => {
                         const v = e.target.value || null
@@ -1434,7 +1433,6 @@ export default function Home() {
                       <div className={`rounded-lg border p-2 space-y-1.5 ${isDark ? 'bg-white/3 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
                         <input
                           type="text"
-                          name="custom-preset-label"
                           value={pqCustomLabel}
                           onChange={(e) => setPqCustomLabel(e.target.value)}
                           placeholder={txt.labelName}
@@ -1442,7 +1440,6 @@ export default function Home() {
                         />
                         <div className="flex items-center gap-1 min-w-0">
                           <select
-                            name="custom-preset-column"
                             value={pqCustomColumn}
                             onChange={(e) => setPqCustomColumn(e.target.value)}
                             className={`flex-1 min-w-0 rounded border h-[26px] text-xs outline-none ${isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
@@ -1460,7 +1457,6 @@ export default function Home() {
                             NOT
                           </button>
                           <select
-                            name="custom-preset-operator"
                             value={pqCustomOperator}
                             onChange={(e) => setPqCustomOperator(e.target.value as 'contains' | 'equals' | 'empty')}
                             className={`rounded border px-1 py-1 outline-none text-xs ${isDark ? 'bg-white/5 border-white/10 text-gray-300' : 'bg-white border-gray-200 text-gray-700'}`}
@@ -1473,7 +1469,6 @@ export default function Home() {
                         {pqCustomOperator !== 'empty' && (
                           <input
                             type="text"
-                            name="custom-preset-value"
                             value={pqCustomValue}
                             onChange={(e) => setPqCustomValue(e.target.value)}
                             placeholder={txt.valuePlaceholder}
@@ -1539,7 +1534,6 @@ export default function Home() {
                       )}
                       <div className="flex items-center gap-1 min-w-0">
                         <select
-                          name="prequery-filter-column"
                           value={f.column}
                           disabled={locked}
                           onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, column: e.target.value } : x))}
@@ -1561,7 +1555,6 @@ export default function Home() {
                           NOT
                         </button>
                         <select
-                          name="prequery-filter-operator"
                           value={f.operator}
                           disabled={locked}
                           onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, operator: e.target.value as 'contains' | 'equals' | 'empty' } : x))}
@@ -1576,7 +1569,6 @@ export default function Home() {
                         {f.operator !== 'empty' && (
                           <input
                             type="text"
-                            name="prequery-filter-value"
                             value={f.value}
                             disabled={locked}
                             onChange={(e) => setPreQueryFilters(preQueryFilters.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))}
@@ -1625,7 +1617,6 @@ export default function Home() {
                       <div className="space-y-2">
                         <input
                           type="range"
-                          name="result-limit-range"
                           min={1}
                           max={maxForTier}
                           step={1}
@@ -1638,7 +1629,6 @@ export default function Home() {
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
-                            name="result-limit"
                             min={1}
                             max={maxForTier}
                             value={currentValue}

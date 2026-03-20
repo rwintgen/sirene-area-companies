@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { auth } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import {
+
   GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -13,6 +14,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 import { Button, CardSection, SectionTitle, ConfirmModal } from '@/components/ui'
+import { useAppLocale } from '@/lib/useAppLocale'
 
 type OrgRole = 'owner' | 'admin' | 'member'
 type Section = 'overview' | 'members' | 'invitations' | 'settings' | 'billing' | 'usage' | 'connectors' | 'support'
@@ -67,6 +69,7 @@ interface Invoice {
 
 export default function OrgDashboard() {
   const [user, authLoading] = useAuthState(auth)
+  const { t: txt } = useAppLocale()
   const [section, setSectionRaw] = useState<Section>('overview')
 
   const navigateToSection = useCallback((s: Section, replace = false) => {
@@ -970,6 +973,18 @@ export default function OrgDashboard() {
               )}
             </button>
           ))}
+          <div className={`md:hidden border-t mt-3 pt-3 ${t.border}`}>
+            <a
+              href="/app"
+              onClick={() => setMobileNavOpen(false)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors ${t.nav}`}
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+              </svg>
+              {txt.backToApp}
+            </a>
+          </div>
         </nav>
 
         {/* Main content */}

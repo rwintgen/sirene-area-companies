@@ -376,6 +376,8 @@ export const en = {
     const m: Record<string, string> = { contains: 'contains', equals: 'equals', empty: 'empty' }
     return m[op] ?? op
   },
+
+  backToApp: 'Back to app',
 }
 
 export const fr: typeof en = {
@@ -756,6 +758,8 @@ export const fr: typeof en = {
     const m: Record<string, string> = { contains: 'contains', equals: 'equals', empty: 'empty' }
     return m[op] ?? op
   },
+
+  backToApp: 'Retour à l\'app',
 }
 export type TranslationDict = typeof en
 
@@ -784,7 +788,7 @@ export function tGroup(t: TranslationDict, group: string): string {
 }
 
 export function tTier(t: TranslationDict, tier: string): string {
-  const map: Record<string, string> = {
+    const map: Record<string, string> = {
     free: t.tierFree, payg: t.tierPayg, individual: t.tierIndividual, enterprise: t.tierEnterprise,
   }
   return map[tier] ?? tier
